@@ -27,6 +27,10 @@ interface NodeDragMsg {
 interface AiChatStreamMsg {
   type: 'AI_CHAT_STREAM';
   prompt: string;
+  currentArchitecture?: {
+    nodes: any[];
+    edges: any[];
+  };
 }
 
 type ClientMessage = CursorMoveMsg | NodeDragMsg | AiChatStreamMsg;
@@ -156,6 +160,7 @@ wsRouter.get(
                 for await (const event of streamDesignArchitecture(
                   messages,
                   projectId,
+                  msg.currentArchitecture
                 )) {
                   if (event.type === 'chunk') {
                     const chunkPayload = JSON.stringify({

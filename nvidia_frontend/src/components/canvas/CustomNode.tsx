@@ -25,7 +25,7 @@ export function CustomNode({ data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        "relative flex items-center gap-3 rounded-xl border bg-zinc-950 px-4 py-3 shadow-lg transition-all duration-200 min-w-[180px]",
+        "relative flex flex-col gap-3 rounded-xl border bg-zinc-950 p-4 shadow-xl transition-all duration-200 min-w-[280px] max-w-[350px]",
         selected ? "border-violet-500 shadow-violet-500/20" : "border-zinc-800 shadow-black/50 hover:border-zinc-700"
       )}
     >
@@ -33,29 +33,50 @@ export function CustomNode({ data, selected }: NodeProps) {
       <Handle
         type="target"
         position={Position.Top}
-        className="h-2 w-2 rounded-full border-2 border-zinc-950 bg-zinc-500 hover:bg-violet-400 hover:scale-125 transition-all"
+        className="h-3 w-3 rounded-full border-2 border-zinc-950 bg-zinc-400 hover:bg-violet-400 hover:scale-125 transition-all"
       />
 
-      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10">
-        <Icon className="h-5 w-5 text-violet-400" />
+      {/* Header: Icon + Label */}
+      <div className="flex items-center gap-3">
+        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10">
+          <Icon className="h-5 w-5 text-violet-400" />
+        </div>
+        <div className="flex flex-col flex-1 overflow-hidden">
+          <span className="text-sm font-bold tracking-tight text-zinc-100 truncate">
+            {data.label as string}
+          </span>
+          <span className="text-[10px] uppercase tracking-wider text-violet-400/80 font-semibold mt-0.5">
+            {data.type as string || 'Service'}
+          </span>
+        </div>
       </div>
 
-      <div className="flex flex-col flex-1 overflow-hidden">
-        <span className="text-sm font-semibold tracking-tight text-zinc-100 truncate">
-          {data.label as string}
-        </span>
-        {Boolean(data.description) && (
-          <span className="text-xs text-zinc-500 truncate mt-0.5">
-            {data.description as string}
-          </span>
-        )}
-      </div>
+      {/* Body: Description */}
+      {Boolean(data.description) && (
+        <div className="text-xs text-zinc-400 leading-relaxed border-t border-white/5 pt-2">
+          {data.description as string}
+        </div>
+      )}
+
+      {/* Footer: Endpoints */}
+      {Array.isArray(data.endpoints) && data.endpoints.length > 0 && (
+        <div className="flex flex-col gap-1.5 border-t border-white/5 pt-2">
+          <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">Endpoints</span>
+          <div className="flex flex-wrap gap-1.5">
+            {data.endpoints.map((endpoint: string, i: number) => (
+              <span key={i} className="inline-flex items-center rounded-md bg-zinc-900 border border-zinc-800 px-2 py-1 text-[10px] font-mono text-zinc-300">
+                {endpoint}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Source handle (bottom) */}
       <Handle
         type="source"
         position={Position.Bottom}
-        className="h-2 w-2 rounded-full border-2 border-zinc-950 bg-zinc-500 hover:bg-violet-400 hover:scale-125 transition-all"
+        className="h-3 w-3 rounded-full border-2 border-zinc-950 bg-zinc-400 hover:bg-violet-400 hover:scale-125 transition-all"
       />
     </div>
   );

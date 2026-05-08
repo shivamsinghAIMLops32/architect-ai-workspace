@@ -48,11 +48,12 @@ Rules:
 1. Always output your reasoning and thought process inside <think>...</think> tags FIRST.
 2. After the </think> tag, output ONLY the raw JSON object — no markdown fences (\`\`\`), no preamble.
 3. The JSON must have exactly two top-level keys: "nodes" and "edges".
-4. Each node must have: id (string), type (string), label (string), position_x (number), position_y (number), data (object).
+4. Each node must have: id (string), type (string), label (string), position_x (number), position_y (number), data (object). You can use 0 for x and y as they are auto-layouted.
 5. Each edge must have: id (string), source (string, a node id), target (string, a node id).
-6. Lay out nodes on a 200-unit grid (e.g., 0, 200, 400...) to give the canvas meaningful coordinates.
-7. Node types should be concise snake_case identifiers: load_balancer, api_server, database, cache, message_queue, cdn, storage, etc.
-8. Produce between 3 and 12 nodes. Keep the design realistic.
+6. Node types should be concise snake_case identifiers: load_balancer, api_server, database, cache, message_queue, cdn, storage, etc.
+7. EVERY node's "data" object MUST contain a "description" (string) explaining its exact role and responsibility in this specific architecture.
+8. If the node is an API, server, or gateway, the "data" object MUST contain an "endpoints" (array of strings) detailing 2-3 sample API routes (e.g. ["POST /users", "GET /health"]). If not applicable, provide an empty array [].
+9. Produce between 3 and 12 nodes. Keep the design realistic and educational.
 
 Example output shape:
 <think>
@@ -60,11 +61,19 @@ To handle high traffic, I should place an Nginx load balancer in front of the AP
 </think>
 {
   "nodes": [
-    { "id": "lb-1", "type": "load_balancer", "label": "Nginx LB", "position_x": 0, "position_y": 200, "data": { "replicas": 1 } }
+    {
+      "id": "nginx_lb",
+      "type": "load_balancer",
+      "label": "Nginx API Gateway",
+      "position_x": 0,
+      "position_y": 0,
+      "data": {
+        "description": "Serves as the main entry point, handles rate limiting, TLS termination, and routes requests to the backend servers.",
+        "endpoints": ["ANY /*", "GET /health"]
+      }
+    }
   ],
-  "edges": [
-    { "id": "edge-lb1-api1", "source": "lb-1", "target": "api-1" }
-  ]
+  "edges": []
 }`;
 
 export type ChatMessagePayload = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -146,6 +155,7 @@ async function persistToDatabase(
   architecture: ArchitectOutput,
   userPrompt: string,
   generatedCode: string,
+  rawBuffer?: string,
 ): Promise<{ savedNodeIds: string[]; savedEdgeIds: string[] }> {
   // Map Architect nodes → Drizzle NewNode shape
   const nodeRows: NewNode[] = architecture.nodes.map((n) => ({
@@ -200,8 +210,7 @@ async function persistToDatabase(
     {
       projectId,
       role: 'assistant',
-      // Store the full AI response: architecture summary + generated code
-      content: `Architecture generated with ${architecture.nodes.length} nodes and ${architecture.edges.length} edges.\n\n\`\`\`\n${generatedCode}\n\`\`\``,
+      content: rawBuffer || `Architecture generated with ${architecture.nodes.length} nodes and ${architecture.edges.length} edges.\n\n\`\`\`\n${generatedCode}\n\`\`\``,
     },
   ]);
 
@@ -256,12 +265,18 @@ export type StreamEvent =
 export async function* streamDesignArchitecture(
   messages: ChatMessagePayload[],
   projectId: string,
+  currentArchitecture?: { nodes: any[], edges: any[] }
 ): AsyncGenerator<StreamEvent> {
   // ── Stage 1: Stream architect thoughts ──────────────────────────────────
+  
+  const systemPrompt = currentArchitecture 
+    ? `${ARCHITECT_SYSTEM_PROMPT}\n\n[SYSTEM NOTE: The user's CURRENT canvas architecture is provided below. You must account for any existing nodes and edges when fulfilling their new request. Ensure you do not drop existing nodes unless requested.]\nCURRENT ARCHITECTURE:\n${JSON.stringify(currentArchitecture, null, 2)}`
+    : ARCHITECT_SYSTEM_PROMPT;
+
   const architectStream = await nvidia.chat.completions.create({
     model: NIM_MODELS.BALANCED,
     messages: [
-      { role: 'system', content: ARCHITECT_SYSTEM_PROMPT },
+      { role: 'system', content: systemPrompt },
       ...messages,
     ],
     temperature: 0.2,
@@ -291,16 +306,27 @@ export async function* streamDesignArchitecture(
     throw new Error(`Architect agent returned unparseable JSON:\n${buffer}`);
   }
 
-  // ── Stage 3: Coder agent (blocking, but WS is already showing progress) ──
-  const code = await runCoderAgent(architecture);
-
-  // ── Stage 4: Persist ─────────────────────────────────────────────────────
+  // ── Stage 3: Fast Persistence & Yield ────────────────────────────────────
+  // We want the UI to update INSTANTLY. The Coder Agent is slow, so we
+  // run it in the background and persist the initial architecture now.
+  
   const { savedNodeIds, savedEdgeIds } = await persistToDatabase(
     projectId,
     architecture,
-    prompt,
-    code,
+    messages[messages.length - 1].content,
+    '', // generatedCode will be updated later
+    buffer // pass the raw buffer to preserve <think> tags in chat history
   );
 
-  yield { type: 'done', result: { architecture, code, savedNodeIds, savedEdgeIds } };
+  yield { type: 'done', result: { architecture, code: '', savedNodeIds, savedEdgeIds } };
+
+  // ── Stage 4: Background Coder Agent ──────────────────────────────────────
+  Promise.resolve().then(async () => {
+    try {
+      const code = await runCoderAgent(architecture);
+      // We could update the DB with the generated code here if needed
+    } catch (e) {
+      console.error('Coder agent failed in background:', e);
+    }
+  });
 }

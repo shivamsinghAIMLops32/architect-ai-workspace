@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/store/project-store';
+import { getLayoutedElements } from '@/lib/layout';
 
 export function useProjectWebSocket(projectId?: string | string[]) {
   const ws = useRef<WebSocket | null>(null);
@@ -41,6 +42,30 @@ export function useProjectWebSocket(projectId?: string | string[]) {
               content: finalContent,
               createdAt: new Date().toISOString(),
             });
+
+            if (data.result?.architecture) {
+              const mappedNodes = data.result.architecture.nodes.map((n: any) => ({
+                id: `${projectId}-${n.id}`,
+                type: n.type || 'default',
+                position: { x: n.position_x, y: n.position_y },
+                data: { label: n.label, ...n.data },
+              }));
+
+              const mappedEdges = data.result.architecture.edges.map((e: any) => ({
+                id: `${projectId}-${e.id}`,
+                source: `${projectId}-${e.source}`,
+                target: `${projectId}-${e.target}`,
+              }));
+
+              const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+                mappedNodes,
+                mappedEdges,
+                'LR' // Left to Right flow for architecture diagrams
+              );
+
+              useProjectStore.getState().setNodes(layoutedNodes);
+              useProjectStore.getState().setEdges(layoutedEdges);
+            }
             break;
           }
 

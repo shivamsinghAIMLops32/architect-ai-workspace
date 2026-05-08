@@ -7,6 +7,8 @@ import { useProjectStore } from '@/store/project-store';
 import { useProjectWebSocket } from '@/hooks/useProjectWebSocket';
 import { CustomNode } from './CustomNode';
 import { NodeEditorPanel } from './NodeEditorPanel';
+import { Button } from '@/components/ui/button';
+import { Plus } from 'lucide-react';
 
 const nodeTypes = {
   default: CustomNode,
@@ -74,8 +76,25 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
     setSelectedNodeId(node.id);
   }, []);
 
+  const handleAddNode = useCallback(() => {
+    const newNode = {
+      id: `manual-${Date.now()}`,
+      type: 'default',
+      position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
+      data: { label: 'New Component' }
+    };
+    setNodes([...nodes, newNode as any]);
+  }, [nodes, setNodes]);
+
   return (
     <div className="h-full w-full relative">
+      <div className="absolute top-4 right-4 z-10">
+        <Button onClick={handleAddNode} variant="outline" className="bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300">
+          <Plus className="mr-2 h-4 w-4" />
+          Add Node
+        </Button>
+      </div>
+      
       <ReactFlow
         nodes={nodes}
         edges={edges}
