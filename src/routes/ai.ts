@@ -1,7 +1,7 @@
 import { Hono } from 'hono';
 import { streamSSE } from 'hono/streaming';
 import { nvidia } from '../lib/nvidia';
-import { NIM_MODELS, type ModelKey } from '../config/models';
+import { NIM_MODELS, type ModelKey } from '../config/model';
 
 const ai = new Hono();
 
