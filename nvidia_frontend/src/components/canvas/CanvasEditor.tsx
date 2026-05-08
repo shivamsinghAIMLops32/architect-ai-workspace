@@ -1,24 +1,35 @@
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { ReactFlow, Background, BackgroundVariant, Controls, Node } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/store/project-store';
 import { useProjectWebSocket } from '@/hooks/useProjectWebSocket';
+import { CustomNode } from './CustomNode';
+import { NodeEditorPanel } from './NodeEditorPanel';
+
+const nodeTypes = {
+  default: CustomNode,
+  // map anything else to CustomNode as well if needed
+  custom: CustomNode,
+};
 
 interface CanvasEditorProps {
   projectId: string;
   initialNodes: any[];
   initialEdges: any[];
+  initialChatHistory: any[];
 }
 
-export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEditorProps) {
+export function CanvasEditor({ projectId, initialNodes, initialEdges, initialChatHistory }: CanvasEditorProps) {
   const initialized = useRef(false);
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const {
     nodes,
     edges,
     setNodes,
     setEdges,
+    setChatHistory,
     onNodesChange,
     onEdgesChange,
     onConnect,
@@ -45,9 +56,10 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
 
       setNodes(mappedNodes);
       setEdges(mappedEdges);
+      setChatHistory(initialChatHistory);
       initialized.current = true;
     }
-  }, [initialNodes, initialEdges, setNodes, setEdges]);
+  }, [initialNodes, initialEdges, initialChatHistory, setNodes, setEdges, setChatHistory]);
 
   const handleNodeDrag = useCallback((_: React.MouseEvent, node: Node) => {
     sendMessage({
@@ -58,15 +70,21 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
     });
   }, [sendMessage]);
 
+  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+  }, []);
+
   return (
     <div className="h-full w-full relative">
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDrag={handleNodeDrag}
+        onNodeClick={handleNodeClick}
         fitView
         className="bg-transparent"
         minZoom={0.2}
@@ -75,6 +93,8 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges }: CanvasEd
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="oklch(1 0 0 / 12%)" />
         <Controls className="bg-card border-white/10 fill-foreground" showInteractive={false} />
       </ReactFlow>
+
+      <NodeEditorPanel nodeId={selectedNodeId} onClose={() => setSelectedNodeId(null)} />
     </div>
   );
 }

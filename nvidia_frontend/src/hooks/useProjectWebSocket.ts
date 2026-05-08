@@ -5,7 +5,7 @@ import { useProjectStore } from '@/store/project-store';
 
 export function useProjectWebSocket(projectId?: string | string[]) {
   const ws = useRef<WebSocket | null>(null);
-  const { setStreamState, appendStreamContent, nodes, setNodes } = useProjectStore();
+  const { setStreamState, appendStreamContent, updateNodePosition } = useProjectStore();
 
   useEffect(() => {
     if (!projectId || typeof projectId !== 'string') return;
@@ -24,26 +24,25 @@ export function useProjectWebSocket(projectId?: string | string[]) {
         
         switch (data.type) {
           case 'NODE_DRAG':
-            // We update the node position if it's from another client
-            // (The backend broadcasts to everyone, including us, but we could also filter by clientId if needed)
-            // Let's just update the store directly
-            setNodes((prevNodes) =>
-              prevNodes.map((n) =>
-                n.id === data.nodeId
-                  ? { ...n, position: { x: data.x, y: data.y } }
-                  : n
-              )
-            );
+            updateNodePosition(data.nodeId, data.x, data.y);
             break;
 
           case 'AI_CHUNK':
             appendStreamContent(data.content);
             break;
 
-          case 'AI_DONE':
+          case 'AI_DONE': {
             setStreamState(false);
-            // Optionally, handle the final result (e.g., merging new nodes/edges into the canvas)
+            const finalContent = useProjectStore.getState().streamContent;
+            useProjectStore.getState().addChatMessage({
+              id: Date.now(),
+              projectId: projectId as string,
+              role: 'assistant',
+              content: finalContent,
+              createdAt: new Date().toISOString(),
+            });
             break;
+          }
 
           case 'AI_ERROR':
             console.error('[WS] AI Error:', data.message);
@@ -68,7 +67,7 @@ export function useProjectWebSocket(projectId?: string | string[]) {
         socket.close();
       }
     };
-  }, [projectId, setStreamState, appendStreamContent, setNodes]); // omit nodes from dependency to avoid reconnecting on node change
+  }, [projectId, setStreamState, appendStreamContent, updateNodePosition]);
 
   const sendMessage = useCallback((msg: any) => {
     if (ws.current?.readyState === WebSocket.OPEN) {

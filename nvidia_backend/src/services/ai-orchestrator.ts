@@ -40,20 +40,24 @@ export interface OrchestratorResult {
 // Converts a free-text prompt into a strict JSON graph of nodes + edges.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ARCHITECT_SYSTEM_PROMPT = `You are a senior infrastructure architect.
-The user will describe a system they want to build.
-Your ONLY job is to output a valid JSON object that maps that system as a graph.
+const ARCHITECT_SYSTEM_PROMPT = `You are a Senior Engineering and System Architect.
+The user will describe a system they want to build or ask follow-up questions.
+Your job is to reason about the system, and then output a valid JSON object that maps that system as a graph.
 
 Rules:
-1. Respond with ONLY raw JSON — no markdown fences, no explanation, no preamble.
-2. The JSON must have exactly two top-level keys: "nodes" and "edges".
-3. Each node must have: id (string), type (string), label (string), position_x (number), position_y (number), data (object).
-4. Each edge must have: id (string), source (string, a node id), target (string, a node id).
-5. Lay out nodes on a 200-unit grid (e.g., 0, 200, 400...) to give the canvas meaningful coordinates.
-6. Node types should be concise snake_case identifiers: load_balancer, api_server, database, cache, message_queue, cdn, storage, etc.
-7. Produce between 3 and 12 nodes. Keep the design realistic.
+1. Always output your reasoning and thought process inside <think>...</think> tags FIRST.
+2. After the </think> tag, output ONLY the raw JSON object — no markdown fences (\`\`\`), no preamble.
+3. The JSON must have exactly two top-level keys: "nodes" and "edges".
+4. Each node must have: id (string), type (string), label (string), position_x (number), position_y (number), data (object).
+5. Each edge must have: id (string), source (string, a node id), target (string, a node id).
+6. Lay out nodes on a 200-unit grid (e.g., 0, 200, 400...) to give the canvas meaningful coordinates.
+7. Node types should be concise snake_case identifiers: load_balancer, api_server, database, cache, message_queue, cdn, storage, etc.
+8. Produce between 3 and 12 nodes. Keep the design realistic.
 
 Example output shape:
+<think>
+To handle high traffic, I should place an Nginx load balancer in front of the API.
+</think>
 {
   "nodes": [
     { "id": "lb-1", "type": "load_balancer", "label": "Nginx LB", "position_x": 0, "position_y": 200, "data": { "replicas": 1 } }
@@ -63,12 +67,14 @@ Example output shape:
   ]
 }`;
 
-async function runArchitectAgent(prompt: string): Promise<ArchitectOutput> {
+export type ChatMessagePayload = { role: 'user' | 'assistant' | 'system'; content: string };
+
+async function runArchitectAgent(messages: ChatMessagePayload[]): Promise<ArchitectOutput> {
   const response = await nvidia.chat.completions.create({
     model: NIM_MODELS.BALANCED, // meta/llama-3.3-70b-instruct
     messages: [
       { role: 'system', content: ARCHITECT_SYSTEM_PROMPT },
-      { role: 'user', content: prompt },
+      ...messages,
     ],
     temperature: 0.2,   // low temp = deterministic JSON
     max_tokens: 2048,
@@ -78,16 +84,19 @@ async function runArchitectAgent(prompt: string): Promise<ArchitectOutput> {
   const raw = response.choices[0]?.message?.content ?? '';
 
   try {
-    const parsed = JSON.parse(raw) as ArchitectOutput;
+    const jsonStr = raw.includes('</think>') ? raw.split('</think>')[1].trim() : raw.trim();
+    // remove markdown fences if the AI hallucinates them despite instructions
+    const cleanJsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+    
+    const parsed = JSON.parse(cleanJsonStr) as ArchitectOutput;
 
-    // Validate the shape minimally before trusting it
     if (!Array.isArray(parsed.nodes) || !Array.isArray(parsed.edges)) {
       throw new Error('Architect agent returned invalid shape — missing nodes or edges array');
     }
 
     return parsed;
-  } catch {
-    throw new Error(`Architect agent returned non-JSON output:\n${raw}`);
+  } catch (e) {
+    throw new Error(`Architect agent returned unparseable output:\n${raw}`);
   }
 }
 
@@ -208,16 +217,17 @@ async function persistToDatabase(
 // ─────────────────────────────────────────────────────────────────────────────
 
 export async function designArchitecture(
-  prompt: string,
+  messages: ChatMessagePayload[],
   projectId: string,
 ): Promise<OrchestratorResult> {
   // ── Stage 1: Architect Agent ─────────────────────────────────
-  const architecture = await runArchitectAgent(prompt);
+  const architecture = await runArchitectAgent(messages);
 
   // ── Stage 2: Coder Agent (runs in parallel is fine here since it's independent) ─
   const code = await runCoderAgent(architecture);
 
   // ── Stage 3: Persist to DB ───────────────────────────────────
+  const prompt = messages[messages.length - 1].content;
   const { savedNodeIds, savedEdgeIds } = await persistToDatabase(
     projectId,
     architecture,
@@ -244,7 +254,7 @@ export type StreamEvent =
   | { type: 'done'; result: OrchestratorResult };
 
 export async function* streamDesignArchitecture(
-  prompt: string,
+  messages: ChatMessagePayload[],
   projectId: string,
 ): AsyncGenerator<StreamEvent> {
   // ── Stage 1: Stream architect thoughts ──────────────────────────────────
@@ -252,7 +262,7 @@ export async function* streamDesignArchitecture(
     model: NIM_MODELS.BALANCED,
     messages: [
       { role: 'system', content: ARCHITECT_SYSTEM_PROMPT },
-      { role: 'user', content: prompt },
+      ...messages,
     ],
     temperature: 0.2,
     max_tokens: 2048,
@@ -271,7 +281,9 @@ export async function* streamDesignArchitecture(
   // ── Stage 2: Parse the fully-streamed JSON ───────────────────────────────
   let architecture: ArchitectOutput;
   try {
-    architecture = JSON.parse(buffer) as ArchitectOutput;
+    const jsonStr = buffer.includes('</think>') ? buffer.split('</think>')[1].trim() : buffer.trim();
+    const cleanJsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
+    architecture = JSON.parse(cleanJsonStr) as ArchitectOutput;
     if (!Array.isArray(architecture.nodes) || !Array.isArray(architecture.edges)) {
       throw new Error('Invalid shape');
     }

@@ -36,6 +36,7 @@ export default async function ProjectCanvasPage({ params }: ProjectPageProps) {
       projectId={projectId}
       initialNodes={canvasState.nodes}
       initialEdges={canvasState.edges}
+      initialChatHistory={canvasState.chatHistory}
     />
   );
 }

@@ -3,7 +3,7 @@ import { upgradeWebSocket, websocket } from 'hono/bun';
 import type { ServerWebSocket } from 'bun';
 
 import { db } from '../db';
-import { nodes } from '../db/schema';
+import { nodes, chatHistory } from '../db/schema';
 import { eq } from 'drizzle-orm';
 import { streamDesignArchitecture } from '../services/ai-orchestrator';
 
@@ -140,8 +140,21 @@ wsRouter.get(
             // Run the pipeline in a non-blocking async IIFE
             void (async () => {
               try {
+                const historyRecords = await db
+                  .select()
+                  .from(chatHistory)
+                  .where(eq(chatHistory.projectId, projectId))
+                  .orderBy(chatHistory.createdAt);
+                  
+                const messages: {role: 'user' | 'assistant' | 'system', content: string}[] = historyRecords.map(h => ({
+                  role: h.role as 'user' | 'assistant',
+                  content: h.content
+                }));
+                
+                messages.push({ role: 'user', content: msg.prompt });
+
                 for await (const event of streamDesignArchitecture(
-                  msg.prompt,
+                  messages,
                   projectId,
                 )) {
                   if (event.type === 'chunk') {

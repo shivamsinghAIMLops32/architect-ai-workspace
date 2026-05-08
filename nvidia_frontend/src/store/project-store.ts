@@ -42,6 +42,7 @@ export interface ProjectState {
   addChatMessage: (message: ChatMessage) => void;
   setStreamState: (isStreaming: boolean, content?: string) => void;
   appendStreamContent: (content: string) => void;
+  updateNodePosition: (id: string, x: number, y: number) => void;
 }
 
 export const useProjectStore = create<ProjectState>((set, get) => ({
@@ -54,6 +55,14 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
   setNodes: (nodes) => set({ nodes }),
   setEdges: (edges) => set({ edges }),
   
+  updateNodePosition: (id, x, y) => {
+    set({
+      nodes: get().nodes.map(n => 
+        n.id === id ? { ...n, position: { x, y } } : n
+      )
+    });
+  },
+
   onNodesChange: (changes) => {
     set({
       nodes: applyNodeChanges(changes, get().nodes),

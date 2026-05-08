@@ -88,29 +88,78 @@ export default function DashboardLayout({
             </div>
           ) : (
             <>
-              {chatHistory.map((msg, idx) => (
-                <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 ${
-                      msg.role === 'user'
-                        ? 'rounded-tr-sm bg-violet-600/20 border border-violet-500/20'
-                        : 'rounded-tl-sm bg-white/4 border border-white/8'
-                    }`}
-                  >
-                    <p className={`text-xs leading-relaxed ${msg.role === 'user' ? 'text-violet-200' : 'text-zinc-300'}`}>
-                      {msg.content}
-                    </p>
+              {chatHistory.map((msg, idx) => {
+                const parts = msg.content.match(/<think>([\s\S]*?)<\/think>([\s\S]*)/);
+                const think = parts ? parts[1].trim() : null;
+                const response = parts ? parts[2].trim() : msg.content;
+                
+                return (
+                  <div key={idx} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                    <div
+                      className={`max-w-[85%] rounded-2xl px-3 py-2 ${
+                        msg.role === 'user'
+                          ? 'rounded-tr-sm bg-violet-600/20 border border-violet-500/20'
+                          : 'rounded-tl-sm bg-white/4 border border-white/8'
+                      }`}
+                    >
+                      {think && (
+                        <details className="mb-2 group">
+                          <summary className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 cursor-pointer select-none hover:text-zinc-300">
+                            Thought Process
+                          </summary>
+                          <div className="mt-2 mb-1 text-xs text-zinc-400 border-l-2 border-white/10 pl-2 ml-1 whitespace-pre-wrap">
+                            {think}
+                          </div>
+                        </details>
+                      )}
+                      {response && (
+                        <p className={`text-xs leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'text-violet-200' : 'text-zinc-300'}`}>
+                          {response}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               
               {isStreaming && streamContent && (
                 <div className="flex justify-start animate-fade-in-up">
                   <div className="max-w-[85%] rounded-2xl rounded-tl-sm bg-white/4 border border-violet-500/30 px-3 py-2 shadow-[0_0_15px_rgba(139,92,246,0.1)]">
-                    <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
-                      {streamContent}
-                      <span className="ml-1 inline-block w-1.5 h-3 bg-violet-400 animate-pulse align-middle" />
-                    </p>
+                    {(() => {
+                      let think = null;
+                      let response = streamContent;
+                      
+                      const match = streamContent.match(/<think>([\s\S]*?)<\/think>([\s\S]*)/);
+                      if (match) {
+                        think = match[1];
+                        response = match[2];
+                      } else if (streamContent.includes('<think>')) {
+                        think = streamContent.split('<think>')[1];
+                        response = '';
+                      }
+
+                      return (
+                        <>
+                          {think !== null && (
+                            <details open className="mb-2 group">
+                              <summary className="text-[10px] font-semibold uppercase tracking-wider text-zinc-500 cursor-pointer select-none hover:text-zinc-300">
+                                Thought Process
+                              </summary>
+                              <div className="mt-2 mb-1 text-xs text-zinc-400 border-l-2 border-white/10 pl-2 ml-1 whitespace-pre-wrap">
+                                {think}
+                                {!response && <span className="ml-1 inline-block w-1.5 h-3 bg-zinc-500 animate-pulse align-middle" />}
+                              </div>
+                            </details>
+                          )}
+                          {(response || think === null) && (
+                            <p className="text-xs text-zinc-300 leading-relaxed whitespace-pre-wrap">
+                              {response}
+                              <span className="ml-1 inline-block w-1.5 h-3 bg-violet-400 animate-pulse align-middle" />
+                            </p>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
                 </div>
               )}
