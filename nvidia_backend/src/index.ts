@@ -14,7 +14,19 @@ import type { AuthVariables } from './middleware/auth';
 const app = new Hono<{ Variables: AuthVariables }>();
 
 // ── Global Middleware ──────────────────────────────────────────────────────
-app.use('*', cors());
+// Strict CORS: wildcard origin cannot be used with credentials (cookies).
+// Allow only the Next.js frontend origin and forward cookies properly.
+app.use(
+  '*',
+  cors({
+    origin: 'http://localhost:3001',
+    allowHeaders: ['Content-Type', 'Authorization'],
+    allowMethods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    exposeHeaders: ['Set-Cookie'],
+    credentials: true,
+    maxAge: 600,
+  }),
+);
 
 // ── Auth Routes (public) ───────────────────────────────────────────────────
 // This single line exposes all Better Auth endpoints:

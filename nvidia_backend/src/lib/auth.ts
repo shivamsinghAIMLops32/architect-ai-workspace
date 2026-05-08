@@ -23,6 +23,11 @@ export const auth = betterAuth({
   // In production, set BETTER_AUTH_URL to your public domain.
   baseURL: env.BETTER_AUTH_URL,
 
+  // ── Trusted origins ───────────────────────────────────────────────────────
+  // Allows cross-origin cookie operations from the Next.js frontend.
+  // Must match the frontend's exact origin (no trailing slash).
+  trustedOrigins: ['http://localhost:3001'],
+
   // ── Database adapter ─────────────────────────────────────────────────────
   database: drizzleAdapter(db, {
     provider: 'pg',
