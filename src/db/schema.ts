@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, real, jsonb, serial } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, real, jsonb, serial, boolean } from 'drizzle-orm/pg-core';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Projects — top-level canvas boards
@@ -68,3 +68,70 @@ export type NewEdge = typeof edges.$inferInsert;
 
 export type ChatMessage = typeof chatHistory.$inferSelect;
 export type NewChatMessage = typeof chatHistory.$inferInsert;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Better Auth — Required Tables
+// Column names must match Better Auth's internal contract EXACTLY.
+// Ref: https://www.better-auth.com/docs/installation#database
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * `user` is a reserved keyword in PostgreSQL, so the physical table is named
+ * `ba_user` while Better Auth references it via the JS key `user`.
+ * The drizzleAdapter accepts a `usePlural` option but column names are fixed.
+ */
+export const user = pgTable('user', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull(),
+  email: text('email').notNull().unique(),
+  emailVerified: boolean('emailVerified').notNull().default(false),
+  image: text('image'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+});
+
+export const session = pgTable('session', {
+  id: text('id').primaryKey(),
+  expiresAt: timestamp('expiresAt').notNull(),
+  token: text('token').notNull().unique(),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+  ipAddress: text('ipAddress'),
+  userAgent: text('userAgent'),
+  userId: text('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+});
+
+export const account = pgTable('account', {
+  id: text('id').primaryKey(),
+  accountId: text('accountId').notNull(),
+  providerId: text('providerId').notNull(),
+  userId: text('userId')
+    .notNull()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  accessToken: text('accessToken'),
+  refreshToken: text('refreshToken'),
+  idToken: text('idToken'),
+  accessTokenExpiresAt: timestamp('accessTokenExpiresAt'),
+  refreshTokenExpiresAt: timestamp('refreshTokenExpiresAt'),
+  scope: text('scope'),
+  password: text('password'),
+  createdAt: timestamp('createdAt').notNull().defaultNow(),
+  updatedAt: timestamp('updatedAt').notNull().defaultNow(),
+});
+
+export const verification = pgTable('verification', {
+  id: text('id').primaryKey(),
+  identifier: text('identifier').notNull(),
+  value: text('value').notNull(),
+  expiresAt: timestamp('expiresAt').notNull(),
+  createdAt: timestamp('createdAt').defaultNow(),
+  updatedAt: timestamp('updatedAt').defaultNow(),
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Better Auth Type Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+export type User = typeof user.$inferSelect;
+export type Session = typeof session.$inferSelect;
