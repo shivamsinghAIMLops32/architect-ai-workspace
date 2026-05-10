@@ -62,11 +62,14 @@ export function CustomNode({ data, selected }: NodeProps) {
   
   const techStack = data.techStack as string[] || [];
   const endpoints = data.endpoints as { method: string; path: string; desc: string }[] || [];
+  const flowStep = data.flowStep as number | undefined;
+  const flowDescription = data.flowDescription as string | undefined;
+  const capacityEstimate = data.capacityEstimate as string | undefined;
 
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-xl border bg-zinc-950 shadow-xl transition-all duration-200 min-w-[350px] max-w-[400px] overflow-hidden",
+        "relative flex flex-col rounded-xl border bg-zinc-950 shadow-xl transition-all duration-200 min-w-[380px] max-w-[420px] overflow-hidden",
         selected ? tierClass : "border-zinc-800 shadow-black/50 hover:border-zinc-700"
       )}
     >
@@ -79,8 +82,15 @@ export function CustomNode({ data, selected }: NodeProps) {
       <div className="p-4 flex flex-col gap-3">
         {/* Header: Icon + Label + Port */}
         <div className="flex items-start gap-3">
-          <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", bgClass)}>
-            <Icon className="h-5 w-5" />
+          <div className="relative">
+            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", bgClass)}>
+              <Icon className="h-5 w-5" />
+            </div>
+            {flowStep && (
+              <div className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white shadow-md border border-violet-400">
+                {flowStep}
+              </div>
+            )}
           </div>
           <div className="flex flex-col flex-1 overflow-hidden">
             <div className="flex items-center justify-between gap-2">
@@ -118,10 +128,28 @@ export function CustomNode({ data, selected }: NodeProps) {
           </div>
         )}
 
-        {/* Body: Description */}
-        {Boolean(data.description) && (
-          <div className="text-xs text-zinc-400 leading-relaxed pt-1">
-            {data.description as string}
+        {/* Body: Description & Flow */}
+        <div className="flex flex-col gap-1.5 pt-1">
+          {Boolean(data.description) && (
+            <div className="text-xs text-zinc-400 leading-relaxed">
+              {data.description as string}
+            </div>
+          )}
+          {flowDescription && (
+            <div className="text-[11px] text-zinc-300 leading-relaxed border-l-2 border-violet-500/50 pl-2 ml-0.5 mt-1">
+              <span className="font-semibold text-violet-400">Flow: </span>
+              {flowDescription}
+            </div>
+          )}
+        </div>
+
+        {/* Calculations / Capacity */}
+        {capacityEstimate && (
+          <div className="flex items-center gap-2 bg-zinc-900/80 rounded px-2.5 py-1.5 border border-white/5 mt-1">
+            <Activity className="w-3 h-3 text-emerald-500 shrink-0" />
+            <span className="text-[10px] font-mono text-zinc-400 truncate" title={capacityEstimate}>
+              {capacityEstimate}
+            </span>
           </div>
         )}
 

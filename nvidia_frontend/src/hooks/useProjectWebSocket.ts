@@ -46,10 +46,11 @@ export function useProjectWebSocket(projectId?: string | string[]) {
             if (data.result?.architecture) {
               const mappedNodes = data.result.architecture.nodes.map((n: any) => ({
                 id: `${projectId}-${n.id}`,
-                type: n.type || 'default',
+                type: 'custom',
                 position: { x: n.position_x, y: n.position_y },
                 data: { 
                   label: n.label, 
+                  type: n.type,
                   ...n.data 
                 },
               }));

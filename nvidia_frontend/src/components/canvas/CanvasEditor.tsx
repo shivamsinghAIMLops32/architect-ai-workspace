@@ -59,9 +59,9 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
       // Map backend nodes to React Flow format
       const mappedNodes = initialNodes.map((n) => ({
         id: n.id,
-        type: n.type || 'default',
+        type: 'custom',
         position: { x: n.positionX, y: n.positionY },
-        data: { label: n.label, ...n.dataJson },
+        data: { label: n.label, type: n.type, ...n.dataJson },
       }));
 
       // Map backend edges to React Flow format

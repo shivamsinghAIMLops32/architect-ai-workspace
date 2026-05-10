@@ -23,12 +23,17 @@ export default async function DashboardPage() {
       <div className="mx-auto w-full max-w-6xl space-y-8">
         {/* Header */}
         <div className="flex items-center justify-between animate-fade-in-up">
-          <div className="space-y-1">
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground flex items-center gap-2">
-              <LayoutDashboard className="h-5 w-5 text-violet-400" />
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/10 px-3 py-1">
+              <Cpu className="h-3.5 w-3.5 text-violet-400" />
+              <span className="text-[11px] font-semibold uppercase tracking-widest text-violet-300">
+                Architect AI Workspace
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground">
               Your Architectures
             </h1>
-            <p className="text-sm text-zinc-400">
+            <p className="text-zinc-400">
               Manage your system designs and AI sessions.
             </p>
           </div>
@@ -56,8 +61,8 @@ export default async function DashboardPage() {
                 <Card className="h-full border-white/8 bg-card/50 hover:bg-card hover:border-violet-500/30 transition-all duration-200 cursor-pointer group shadow-lg shadow-black/20">
                   <CardHeader className="space-y-3">
                     <div className="flex items-start justify-between">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-violet-500/20 bg-violet-500/10 group-hover:scale-105 transition-transform duration-200">
-                        <Cpu className="h-5 w-5 text-violet-400" />
+                      <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-violet-500/20 bg-violet-500/10 group-hover:bg-violet-500/20 group-hover:scale-110 transition-all duration-300 shadow-inner">
+                        <Cpu className="h-6 w-6 text-violet-400 group-hover:text-violet-300" />
                       </div>
                     </div>
                     <div className="space-y-1">

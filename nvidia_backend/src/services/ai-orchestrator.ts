@@ -22,6 +22,9 @@ export interface ArchitectNodeData {
   protocol: string;        // "HTTP", "gRPC", "WebSocket", "TCP", "AMQP"
   tier: 'client' | 'gateway' | 'service' | 'data' | 'external';
   scaling: string;         // "horizontal", "vertical", "singleton"
+  flowStep?: number;
+  flowDescription?: string;
+  capacityEstimate?: string;
 }
 
 export interface ArchitectNode {
@@ -61,12 +64,13 @@ export interface OrchestratorResult {
 
 const ARCHITECT_SYSTEM_PROMPT = `You are a Senior Engineering and System Architect who designs production-grade distributed systems.
 The user will describe a system they want to build or ask follow-up questions.
-Your job is to reason about the system, and then output a valid JSON object that maps that system as a graph.
+Your job is to reason about the system, and then output a conversational explanation followed by a valid JSON object that maps that system as a graph.
 
 Rules:
 1. Always output your reasoning and thought process inside <think>...</think> tags FIRST.
-2. After the </think> tag, output ONLY the raw JSON object — no markdown fences (\`\`\`), no preamble.
-3. The JSON must have exactly two top-level keys: "nodes" and "edges".
+2. After the </think> tag, output a brief, conversational Markdown explanation (1-2 paragraphs) of the architecture flow. Use numbering if appropriate.
+3. Finally, output a JSON block inside a \`\`\`json fence.
+4. The JSON must have exactly two top-level keys: "nodes" and "edges".
 
 NODE SCHEMA — each node MUST have ALL of these fields:
 {
@@ -85,7 +89,10 @@ NODE SCHEMA — each node MUST have ALL of these fields:
     "port": 8080,
     "protocol": "HTTP",
     "tier": "service",
-    "scaling": "horizontal"
+    "scaling": "horizontal",
+    "flowStep": 2,
+    "flowDescription": "Authenticates the user and routes the playback request",
+    "capacityEstimate": "10k req/sec, 50MB/s bandwidth"
   }
 }
 
@@ -101,6 +108,9 @@ FIELD RULES:
     - "data" = databases, caches, message queues, object storage
     - "external" = third-party APIs, email providers, payment gateways
 - "scaling": One of "horizontal", "vertical", "singleton". Most services are "horizontal", databases are typically "vertical" or "singleton".
+- "flowStep": Integer. Number the nodes to show the primary path a user request takes (1, 2, 3...). Use the same number for parallel steps. Leave null for background/monitoring tasks.
+- "flowDescription": A concise 1-sentence description of what happens at this node during the request flow.
+- "capacityEstimate": A brief back-of-the-envelope calculation for this node (e.g., "10k req/sec", "500GB storage", "2ms latency").
 
 EDGE SCHEMA — each edge MUST have ALL of these fields:
 {
@@ -127,6 +137,9 @@ Example output shape:
 <think>
 The user wants an e-commerce API. I need a CDN for the frontend, an API gateway, two microservices, a database, and a cache layer. Let me assign tiers properly.
 </think>
+Here is the architecture for your e-commerce platform. It starts with the React SPA communicating with an API gateway, which routes traffic to the backend services.
+
+\`\`\`json
 {
   "nodes": [
     {
@@ -142,7 +155,10 @@ The user wants an e-commerce API. I need a CDN for the frontend, an API gateway,
         "port": 3000,
         "protocol": "HTTPS",
         "tier": "client",
-        "scaling": "horizontal"
+        "scaling": "horizontal",
+        "flowStep": 1,
+        "flowDescription": "User loads the storefront and performs actions",
+        "capacityEstimate": "1M DAU, 50MB static assets"
       }
     },
     {
@@ -161,7 +177,10 @@ The user wants an e-commerce API. I need a CDN for the frontend, an API gateway,
         "port": 443,
         "protocol": "HTTPS",
         "tier": "gateway",
-        "scaling": "horizontal"
+        "scaling": "horizontal",
+        "flowStep": 2,
+        "flowDescription": "Receives user API request and proxies to microservices",
+        "capacityEstimate": "50k req/sec, TLS termination"
       }
     }
   ],
@@ -175,7 +194,8 @@ The user wants an e-commerce API. I need a CDN for the frontend, an API gateway,
       "animated": false
     }
   ]
-}`;
+}
+\`\`\``;
 
 export type ChatMessagePayload = { role: 'user' | 'assistant' | 'system'; content: string };
 
@@ -194,8 +214,8 @@ async function runArchitectAgent(messages: ChatMessagePayload[]): Promise<Archit
   const raw = response.choices[0]?.message?.content ?? '';
 
   try {
-    const jsonStr = raw.includes('</think>') ? raw.split('</think>')[1].trim() : raw.trim();
-    // remove markdown fences if the AI hallucinates them despite instructions
+    const jsonMatch = raw.match(/```json\n([\s\S]*?)\n```/);
+    const jsonStr = jsonMatch ? jsonMatch[1] : raw.includes('</think>') ? raw.split('</think>')[1].trim() : raw.trim();
     const cleanJsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
     
     const parsed = JSON.parse(cleanJsonStr) as ArchitectOutput;
@@ -403,7 +423,8 @@ export async function* streamDesignArchitecture(
   // ── Stage 2: Parse the fully-streamed JSON ───────────────────────────────
   let architecture: ArchitectOutput;
   try {
-    const jsonStr = buffer.includes('</think>') ? buffer.split('</think>')[1].trim() : buffer.trim();
+    const jsonMatch = buffer.match(/```json\n([\s\S]*?)\n```/);
+    const jsonStr = jsonMatch ? jsonMatch[1] : buffer.includes('</think>') ? buffer.split('</think>')[1].trim() : buffer.trim();
     const cleanJsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '').trim();
     architecture = JSON.parse(cleanJsonStr) as ArchitectOutput;
     if (!Array.isArray(architecture.nodes) || !Array.isArray(architecture.edges)) {
