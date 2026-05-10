@@ -1,15 +1,96 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { CheckCircle2, Network, Send } from 'lucide-react';
+import { CheckCircle2, ListChecks, Network, Send, Sparkles } from 'lucide-react';
 import { useProjectStore } from '@/store/project-store';
 import { useProjectWebSocket } from '@/hooks/useProjectWebSocket';
 import { ArchitectLogo } from '@/components/brand/architect-logo';
 import { AiResponseLoader } from '@/components/ui/ai-response-loader';
+import type { AiCanvasSnapshotEdge, AiCanvasSnapshotNode } from '@/types/architecture';
 
 interface GeneratedNodeSummary {
   id?: string;
   label?: string;
+  data?: {
+    tier?: string;
+    flowStep?: number;
+  };
+}
+
+function stripProjectPrefix(id: string, projectId: string) {
+  const prefix = `${projectId}-`;
+  return id.startsWith(prefix) ? id.slice(prefix.length) : id;
+}
+
+function buildCurrentArchitectureSnapshot(projectId: string): {
+  nodes: AiCanvasSnapshotNode[];
+  edges: AiCanvasSnapshotEdge[];
+} {
+  const state = useProjectStore.getState();
+
+  return {
+    nodes: state.nodes.map((node) => ({
+      id: stripProjectPrefix(node.id, projectId),
+      type: typeof node.data?.type === 'string' ? node.data.type : node.type,
+      label: typeof node.data?.label === 'string' ? node.data.label : 'Untitled component',
+      position_x: node.position.x,
+      position_y: node.position.y,
+      data: { ...node.data },
+    })),
+    edges: state.edges.map((edge) => ({
+      id: stripProjectPrefix(edge.id, projectId),
+      source: stripProjectPrefix(edge.source, projectId),
+      target: stripProjectPrefix(edge.target, projectId),
+      data: { ...(edge.data ?? {}) },
+    })),
+  };
+}
+
+function parseAssistantContent(content: string) {
+  const withoutThink = content.replace(/<think>[\s\S]*?<\/think>/g, '').replace(/<think>[\s\S]*/g, '');
+  const jsonMatch = withoutThink.match(/```json\s*([\s\S]*?)\s*```/i);
+  const objectStart = withoutThink.indexOf('{');
+  const objectEnd = withoutThink.lastIndexOf('}');
+  const fallbackJson = !jsonMatch && objectStart !== -1 && objectEnd > objectStart
+    ? withoutThink.slice(objectStart, objectEnd + 1)
+    : null;
+  const jsonStartCandidates = [
+    withoutThink.toLowerCase().indexOf('```json'),
+    withoutThink.indexOf('{'),
+    withoutThink.search(/(^|\n)\s*"(nodes|edges|id|type|label|position_x|position_y|data)"\s*:/),
+  ].filter((index) => index >= 0);
+  const jsonStart = jsonStartCandidates.length > 0 ? Math.min(...jsonStartCandidates) : -1;
+  const visibleText = jsonStart >= 0 ? withoutThink.slice(0, jsonStart) : withoutThink;
+  const jsonBlock = jsonMatch?.[1]?.trim() ?? fallbackJson;
+  const markdownText = visibleText
+    .replace(/```[\s\S]*?```/g, '')
+    .trim();
+
+  return { markdownText, jsonBlock };
+}
+
+function ChatText({ text }: { text: string }) {
+  const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+  if (lines.length === 0) return null;
+
+  return (
+    <div className="space-y-2 text-xs leading-relaxed">
+      {lines.map((line, index) => {
+        const normalized = line.replace(/^#{1,6}\s*/, '').replace(/\*\*/g, '');
+        const isList = /^(\d+\.|-|\*)\s+/.test(normalized);
+        const display = normalized.replace(/^(\d+\.|-|\*)\s+/, '');
+
+        return (
+          <div key={`${line}-${index}`} className={isList ? 'flex gap-2' : ''}>
+            {isList && (
+              <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-cyan-200 shadow-[0_0_10px_rgba(103,232,249,0.55)]" />
+            )}
+            <p className="text-zinc-300">{display}</p>
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 export function ProjectSidebar({ projectId }: { projectId: string }) {
@@ -33,14 +114,14 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
     });
 
     setStreamState(true, '');
-    sendMessage({ 
+    const queued = !sendMessage({ 
       type: 'AI_CHAT_STREAM', 
       prompt,
-      currentArchitecture: {
-        nodes: useProjectStore.getState().nodes,
-        edges: useProjectStore.getState().edges
-      }
+      currentArchitecture: buildCurrentArchitectureSnapshot(projectId),
     });
+    if (queued) {
+      setStreamState(true, 'Connecting to the architecture engine...');
+    }
     setPrompt('');
   }
 
@@ -82,29 +163,9 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
         ) : (
           <>
             {chatHistory.map((msg, idx) => {
-              // Parse out conversational markdown and JSON block
-              let markdownText = msg.content;
-              let jsonBlock = null;
-
-              if (msg.role === 'assistant') {
-                const jsonMatch = msg.content.match(/```json\n([\s\S]*?)\n```/);
-                if (jsonMatch) {
-                  jsonBlock = jsonMatch[1];
-                  markdownText = msg.content.replace(jsonMatch[0], '').trim();
-                } else if (msg.content.trim().startsWith('{')) {
-                  jsonBlock = msg.content;
-                  markdownText = '';
-                }
-
-                // Strip out think tags for markdown display
-                const thinkMatch = markdownText.match(/<think>([\s\S]*?)<\/think>/);
-                if (thinkMatch) {
-                  markdownText = markdownText.replace(thinkMatch[0], '').trim();
-                }
-              }
-
-              const parts = msg.content.match(/<think>([\s\S]*?)<\/think>/);
-              const think = parts ? parts[1].trim() : null;
+              const { markdownText, jsonBlock } = msg.role === 'assistant'
+                ? parseAssistantContent(msg.content)
+                : { markdownText: msg.content, jsonBlock: null };
               
               return (
                 <div key={idx} className={`flex animate-fade-in-scale ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
@@ -115,22 +176,9 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
                         : 'bg-white/[0.045] border border-white/10 text-zinc-300 shadow-black/20'
                     }`}
                   >
-                    {msg.role === 'assistant' && think && (
-                      <details className="mb-2 group">
-                        <summary className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wider text-zinc-500 hover:text-cyan-100">
-                          Thought Process
-                        </summary>
-                        <div className="mt-2 mb-2 text-[11px] text-zinc-400 border-l-2 border-white/10 pl-2 ml-1 whitespace-pre-wrap leading-relaxed">
-                          {think}
-                        </div>
-                      </details>
-                    )}
-                    
                     {/* Render conversational text */}
                     {markdownText && (
-                      <div className="whitespace-pre-wrap text-xs leading-relaxed">
-                        {markdownText}
-                      </div>
+                      <ChatText text={markdownText} />
                     )}
 
                     {/* Render JSON success card */}
@@ -140,7 +188,7 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
                           <span className="flex h-6 w-6 items-center justify-center rounded-md bg-lime-300/12 text-lime-100 ring-1 ring-lime-200/20">
                             <CheckCircle2 className="h-3.5 w-3.5" />
                           </span>
-                          <span className="text-xs font-bold text-zinc-200">Architecture Generated</span>
+                          <span className="text-xs font-bold text-zinc-200">Canvas Updated</span>
                         </div>
                         {(() => {
                           try {
@@ -154,13 +202,16 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
                                   {nodeCount} nodes · {edgeCount} connections
                                   </span>
                                   <span className="rounded-md border border-cyan-300/10 bg-cyan-300/[0.04] px-2 py-1 text-cyan-100">
-                                    Canvas synced
+                                    Structured flow
                                   </span>
                                 </div>
                                 <div className="flex flex-wrap gap-1.5">
-                                  {(parsed.nodes as GeneratedNodeSummary[] | undefined)?.map((n, i) => (
+                                  {(parsed.nodes as GeneratedNodeSummary[] | undefined)
+                                    ?.slice()
+                                    .sort((a, b) => (a.data?.flowStep ?? 999) - (b.data?.flowStep ?? 999))
+                                    .map((n, i) => (
                                     <span key={i} className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-[9px] font-medium text-zinc-400 transition-colors hover:border-cyan-300/20 hover:text-cyan-100">
-                                      {n.label || n.id}
+                                      {n.data?.flowStep ? `${n.data.flowStep}. ` : ''}{n.label || n.id}
                                     </span>
                                   ))}
                                 </div>
@@ -184,34 +235,27 @@ export function ProjectSidebar({ projectId }: { projectId: string }) {
                   {!streamContent && <AiResponseLoader label="Contacting backend" />}
                   {streamContent && (
                     <div className="rounded-lg border border-cyan-300/24 bg-white/[0.045] px-3 py-2 shadow-[0_0_25px_rgba(34,211,238,0.08)]">
-                  {(() => {
-                    let think = null;
-                    
-                    const match = streamContent.match(/<think>([\s\S]*?)<\/think>/);
-                    if (match) {
-                      think = match[1].trim();
-                    } else if (streamContent.includes('<think>')) {
-                      think = streamContent.replace('<think>', '').trim();
-                    }
-                    
-                    return (
-                      <>
-                        {think && (
-                          <details className="mb-2 group" open>
-                            <summary className="cursor-pointer select-none text-[10px] font-semibold uppercase tracking-wider text-cyan-100">
-                              Reasoning...
-                            </summary>
-                            <div className="ml-1 mt-2 whitespace-pre-wrap border-l-2 border-cyan-300/30 pl-2 text-[11px] leading-relaxed text-zinc-400">
-                              {think}
+                      {(() => {
+                        const { markdownText } = parseAssistantContent(streamContent);
+
+                        if (!markdownText) {
+                          return <AiResponseLoader label="Analyzing architecture" compact />;
+                        }
+
+                        return (
+                          <div className="space-y-3">
+                            <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.16em] text-cyan-100">
+                              <Sparkles className="h-3 w-3" />
+                              Streaming architecture plan
                             </div>
-                          </details>
-                        )}
-                        {!think && (
-                          <AiResponseLoader label="Analyzing request" compact />
-                        )}
-                      </>
-                    );
-                  })()}
+                            <ChatText text={markdownText} />
+                            <div className="flex items-center gap-2 rounded-md border border-lime-300/10 bg-lime-300/[0.04] px-2 py-1 text-[10px] text-lime-100">
+                              <ListChecks className="h-3 w-3" />
+                              Canvas JSON hidden and syncing in the background
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>

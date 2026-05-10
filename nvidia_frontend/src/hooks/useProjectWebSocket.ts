@@ -7,7 +7,16 @@ import type { ProjectWsIncomingMessage, ProjectWsOutgoingMessage } from '@/types
 
 export function useProjectWebSocket(projectId?: string | string[]) {
   const ws = useRef<WebSocket | null>(null);
+  const pendingMessages = useRef<ProjectWsOutgoingMessage[]>([]);
   const { setStreamState, appendStreamContent, updateNodePosition } = useProjectStore();
+
+  const flushPendingMessages = useCallback(() => {
+    if (ws.current?.readyState !== WebSocket.OPEN) return;
+    while (pendingMessages.current.length > 0) {
+      const msg = pendingMessages.current.shift();
+      if (msg) ws.current.send(JSON.stringify(msg));
+    }
+  }, []);
 
   useEffect(() => {
     if (!projectId || typeof projectId !== 'string') return;
@@ -18,6 +27,7 @@ export function useProjectWebSocket(projectId?: string | string[]) {
 
     socket.onopen = () => {
       console.log('[WS] Connected to project', projectId);
+      flushPendingMessages();
     };
 
     socket.onmessage = (event) => {
@@ -34,13 +44,16 @@ export function useProjectWebSocket(projectId?: string | string[]) {
             break;
 
           case 'AI_DONE': {
-            setStreamState(false);
             const finalContent = useProjectStore.getState().streamContent;
+            const hiddenArchitectureJson = data.result?.architecture
+              ? `\n\n\`\`\`json\n${JSON.stringify(data.result.architecture, null, 2)}\n\`\`\``
+              : '';
+            setStreamState(false);
             useProjectStore.getState().addChatMessage({
               id: Date.now(),
               projectId: projectId as string,
               role: 'assistant',
-              content: finalContent,
+              content: `${finalContent.trim()}${hiddenArchitectureJson}`,
               createdAt: new Date().toISOString(),
             });
 
@@ -82,6 +95,13 @@ export function useProjectWebSocket(projectId?: string | string[]) {
           case 'AI_ERROR':
             console.error('[WS] AI Error:', data.message);
             setStreamState(false);
+            useProjectStore.getState().addChatMessage({
+              id: Date.now(),
+              projectId: projectId as string,
+              role: 'assistant',
+              content: `Architecture generation failed: ${data.message}`,
+              createdAt: new Date().toISOString(),
+            });
             break;
 
           default:
@@ -102,12 +122,15 @@ export function useProjectWebSocket(projectId?: string | string[]) {
         socket.close();
       }
     };
-  }, [projectId, setStreamState, appendStreamContent, updateNodePosition]);
+  }, [projectId, setStreamState, appendStreamContent, updateNodePosition, flushPendingMessages]);
 
   const sendMessage = useCallback((msg: ProjectWsOutgoingMessage) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(msg));
+      return true;
     }
+    pendingMessages.current.push(msg);
+    return false;
   }, []);
 
   return { sendMessage };

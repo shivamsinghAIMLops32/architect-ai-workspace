@@ -29,8 +29,8 @@ interface AiChatStreamMsg {
   type: 'AI_CHAT_STREAM';
   prompt: string;
   currentArchitecture?: {
-    nodes: any[];
-    edges: any[];
+    nodes: unknown[];
+    edges: unknown[];
   };
 }
 

@@ -44,6 +44,22 @@ export interface AiArchitectureNode {
   data?: Record<string, unknown>;
 }
 
+export interface AiCanvasSnapshotNode {
+  id: string;
+  type?: string;
+  label: string;
+  position_x: number;
+  position_y: number;
+  data: Record<string, unknown>;
+}
+
+export interface AiCanvasSnapshotEdge {
+  id: string;
+  source: string;
+  target: string;
+  data: Record<string, unknown>;
+}
+
 export interface AiArchitectureEdge {
   id: string;
   source: string;
@@ -74,8 +90,8 @@ export type ProjectWsOutgoingMessage =
       type: 'AI_CHAT_STREAM';
       prompt: string;
       currentArchitecture: {
-        nodes: unknown[];
-        edges: unknown[];
+        nodes: AiCanvasSnapshotNode[];
+        edges: AiCanvasSnapshotEdge[];
       };
     }
   | { type: 'NODE_DRAG'; nodeId: string; x: number; y: number };

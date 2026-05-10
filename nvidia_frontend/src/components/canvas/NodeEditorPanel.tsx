@@ -16,6 +16,8 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
   const { nodes, setNodes } = useProjectStore();
   const [label, setLabel] = useState('');
   const [description, setDescription] = useState('');
+  const [nodeType, setNodeType] = useState('service');
+  const [tier, setTier] = useState('service');
 
   const node = nodes.find(n => n.id === nodeId);
 
@@ -24,6 +26,8 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setLabel((node.data.label as string) || '');
       setDescription((node.data.description as string) || '');
+      setNodeType((node.data.type as string) || node.type || 'service');
+      setTier((node.data.tier as string) || 'service');
     }
   }, [node]);
 
@@ -33,7 +37,7 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
     setNodes(
       nodes.map(n => 
         n.id === nodeId 
-          ? { ...n, data: { ...n.data, label, description } }
+          ? { ...n, type: 'custom', data: { ...n.data, label, description, type: nodeType, tier } }
           : n
       )
     );
@@ -66,6 +70,33 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
               className="border-white/10 bg-white/5 text-zinc-200 focus-visible:ring-cyan-300/50"
               placeholder="e.g. Nginx Load Balancer"
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Type</label>
+              <Input
+                value={nodeType}
+                onChange={(e) => setNodeType(e.target.value)}
+                className="border-white/10 bg-white/5 text-zinc-200 focus-visible:ring-cyan-300/50"
+                placeholder="api_server"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Tier</label>
+              <select
+                value={tier}
+                onChange={(e) => setTier(e.target.value)}
+                className="h-8 w-full rounded-lg border border-white/10 bg-zinc-950 px-3 text-sm text-zinc-200 outline-none transition-all focus:border-cyan-300/50 focus:ring-2 focus:ring-cyan-300/20"
+              >
+                <option value="client">Client</option>
+                <option value="gateway">Gateway</option>
+                <option value="service">Service</option>
+                <option value="data">Data</option>
+                <option value="external">External</option>
+              </select>
+            </div>
           </div>
           
           <div className="space-y-2">

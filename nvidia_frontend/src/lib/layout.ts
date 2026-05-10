@@ -2,17 +2,20 @@ import dagre from 'dagre';
 import { Node, Edge } from '@xyflow/react';
 
 // Standard dimensions for our new rich nodes
-const nodeWidth = 350;
-const nodeHeight = 250; // Increased height for richer content
+const nodeWidth = 420;
+const nodeHeight = 290;
+const verticalGap = 70;
 
 // Tier definitions for layout
 const TIER_COLUMNS: Record<string, number> = {
   client: 0,
-  gateway: 450,
-  service: 900,
-  data: 1350,
-  external: 1800,
+  gateway: 520,
+  service: 1040,
+  data: 1560,
+  external: 2080,
 };
+
+const TIER_ORDER = ['client', 'gateway', 'service', 'data', 'external', 'unknown'];
 
 export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'LR') => {
   const dagreGraph = new dagre.graphlib.Graph();
@@ -53,23 +56,38 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'L
   // Let dagre do its layout to calculate edge routing and fallback node positions
   dagre.layout(dagreGraph);
 
-  // Now, override node X positions based on tiers, and arrange Y positions sequentially
+  const positionedById = new Map<string, { x: number; y: number }>();
+
+  TIER_ORDER.forEach((tierName) => {
+    const tierNodes = [...(nodesByTier[tierName] ?? [])].sort((a, b) => {
+      const aStep = Number(a.data?.flowStep) || 999;
+      const bStep = Number(b.data?.flowStep) || 999;
+      if (aStep !== bStep) return aStep - bStep;
+      return String(a.data?.label ?? a.id).localeCompare(String(b.data?.label ?? b.id));
+    });
+
+    const columnX = TIER_COLUMNS[tierName] ?? 1040;
+    const totalHeight = tierNodes.length * nodeHeight + Math.max(0, tierNodes.length - 1) * verticalGap;
+    const startY = -totalHeight / 2;
+
+    tierNodes.forEach((node, index) => {
+      positionedById.set(node.id, {
+        x: columnX,
+        y: startY + index * (nodeHeight + verticalGap),
+      });
+    });
+  });
+
   const newNodes = nodes.map((node) => {
     const dagreNode = dagreGraph.node(node.id);
-    const tier = (node.data?.tier as string) || 'unknown';
+    const systematicPosition = positionedById.get(node.id);
     
-    let targetX = dagreNode.x - nodeWidth / 2;
-    const targetY = dagreNode.y - nodeHeight / 2;
-
-    // If it has a known tier, override its X position to snap to our perfect columns,
-    // but keep dagre's Y position to prevent edge crossings and overlapping!
-    if (TIER_COLUMNS[tier] !== undefined) {
-      targetX = TIER_COLUMNS[tier];
-    }
-
     return {
       ...node,
-      position: { x: targetX, y: targetY },
+      position: systematicPosition ?? {
+        x: dagreNode.x - nodeWidth / 2,
+        y: dagreNode.y - nodeHeight / 2,
+      },
     };
   });
 

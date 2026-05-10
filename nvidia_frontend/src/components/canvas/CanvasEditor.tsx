@@ -13,6 +13,7 @@ import { Plus } from 'lucide-react';
 import { ShareButton } from './ShareButton';
 import type { BackendCanvasEdge, BackendCanvasNode } from '@/types/architecture';
 import type { ChatMessage } from '@/store/project-store';
+import { getLayoutedElements } from '@/lib/layout';
 
 const nodeTypes = {
   default: CustomNode,
@@ -74,8 +75,14 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
         data: e.dataJson || {},
       }));
 
-      setNodes(mappedNodes);
-      setEdges(mappedEdges);
+      const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
+        mappedNodes,
+        mappedEdges,
+        'LR'
+      );
+
+      setNodes(layoutedNodes);
+      setEdges(layoutedEdges);
       setChatHistory(initialChatHistory);
       initialized.current = true;
     }
@@ -95,11 +102,29 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
   }, []);
 
   const handleAddNode = useCallback(() => {
+    const nextFlowStep = Math.max(
+      0,
+      ...nodes.map((node) => Number(node.data?.flowStep) || 0)
+    ) + 1;
+
     const newNode: Node = {
       id: `manual-${Date.now()}`,
-      type: 'default',
-      position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
-      data: { label: 'New Component' }
+      type: 'custom',
+      position: { x: 1040, y: nextFlowStep * 180 },
+      data: {
+        label: 'New Component',
+        type: 'service',
+        description: 'Manually added component. Edit this node, then ask AI to connect or refine it.',
+        endpoints: [],
+        techStack: ['Custom'],
+        port: null,
+        protocol: 'HTTP',
+        tier: 'service',
+        scaling: 'horizontal',
+        flowStep: nextFlowStep,
+        flowDescription: 'Manual component awaiting refinement',
+        capacityEstimate: 'TBD',
+      }
     };
     setNodes([...nodes, newNode]);
   }, [nodes, setNodes]);
