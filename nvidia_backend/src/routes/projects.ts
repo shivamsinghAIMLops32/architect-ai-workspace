@@ -1,8 +1,9 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../db';
 import { projects } from '../db/schema';
+import type { AuthVariables } from '../middleware/auth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Validation Schemas
@@ -16,17 +17,21 @@ const CreateProjectSchema = z.object({
 // Router
 // ─────────────────────────────────────────────────────────────────────────────
 
-const projectsRouter = new Hono();
+const projectsRouter = new Hono<{ Variables: AuthVariables }>();
 
 /**
  * GET /api/projects
- * List all projects, newest first.
+ * List the current user's projects, newest first.
+ * Only returns projects owned by the authenticated user.
  */
 projectsRouter.get('/', async (c) => {
+  const user = c.get('user');
+
   try {
     const allProjects = await db
       .select()
       .from(projects)
+      .where(eq(projects.userId, user.id))
       .orderBy(desc(projects.createdAt));
 
     return c.json({ data: allProjects });
@@ -38,16 +43,17 @@ projectsRouter.get('/', async (c) => {
 
 /**
  * GET /api/projects/:projectId
- * Fetch a single project by ID.
+ * Fetch a single project by ID — only if it belongs to the current user.
  */
 projectsRouter.get('/:projectId', async (c) => {
   const projectId = c.req.param('projectId')!;
+  const user = c.get('user');
 
   try {
     const [project] = await db
       .select()
       .from(projects)
-      .where(eq(projects.id, projectId))
+      .where(and(eq(projects.id, projectId), eq(projects.userId, user.id)))
       .limit(1);
 
     if (!project) {
@@ -63,10 +69,12 @@ projectsRouter.get('/:projectId', async (c) => {
 
 /**
  * POST /api/projects
- * Create a new project (new canvas board).
+ * Create a new project (new canvas board) owned by the current user.
  * Body: { name: string }
  */
 projectsRouter.post('/', async (c) => {
+  const user = c.get('user');
+
   let body: unknown;
   try {
     body = await c.req.json();
@@ -83,7 +91,7 @@ projectsRouter.post('/', async (c) => {
     const id = crypto.randomUUID();
     const [project] = await db
       .insert(projects)
-      .values({ id, name: parsed.data.name })
+      .values({ id, name: parsed.data.name, userId: user.id })
       .returning();
 
     return c.json({ data: project }, 201);
@@ -97,14 +105,16 @@ projectsRouter.post('/', async (c) => {
  * DELETE /api/projects/:projectId
  * Delete a project and all its nodes, edges, and chat history
  * (ON DELETE CASCADE handles the child rows automatically).
+ * Only the owner can delete.
  */
 projectsRouter.delete('/:projectId', async (c) => {
   const projectId = c.req.param('projectId')!;
+  const user = c.get('user');
 
   try {
     const deleted = await db
       .delete(projects)
-      .where(eq(projects.id, projectId))
+      .where(and(eq(projects.id, projectId), eq(projects.userId, user.id)))
       .returning({ id: projects.id });
 
     if (deleted.length === 0) {

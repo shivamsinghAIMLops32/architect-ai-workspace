@@ -1,9 +1,10 @@
 import { Hono } from 'hono';
 import { z } from 'zod';
-import { asc, eq } from 'drizzle-orm';
+import { asc, eq, and } from 'drizzle-orm';
 import { db } from '../db';
 import { nodes, edges, chatHistory, projects } from '../db/schema';
 import { designArchitecture } from '../services/ai-orchestrator';
+import type { AuthVariables } from '../middleware/auth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Validation Schemas
@@ -17,33 +18,28 @@ const DesignSchema = z.object({
 // Router
 // ─────────────────────────────────────────────────────────────────────────────
 
-const canvasRouter = new Hono();
+const canvasRouter = new Hono<{ Variables: AuthVariables }>();
 
 /**
  * GET /api/canvas/:projectId
  *
  * Returns the COMPLETE initial state needed to hydrate the canvas when a
- * user first loads a project:
- *   - project metadata
- *   - all nodes (with positions and data)
- *   - all edges (source/target relationships)
- *   - full chat history (ordered oldest → newest for display)
- *
- * This is the single network request the frontend makes on page load.
+ * user first loads a project. Verifies the user owns the project.
  */
 canvasRouter.get('/:projectId', async (c) => {
   const projectId = c.req.param('projectId')!;
+  const user = c.get('user');
 
   try {
-    // Verify the project exists first to return a proper 404
+    // Verify the project exists AND belongs to the user
     const [project] = await db
       .select()
       .from(projects)
-      .where(eq(projects.id, projectId))
+      .where(and(eq(projects.id, projectId), eq(projects.userId, user.id)))
       .limit(1);
 
     if (!project) {
-      return c.json({ error: 'Project not found' }, 404);
+      return c.json({ error: 'Project not found or access denied' }, 404);
     }
 
     // Fetch all canvas data in parallel — 3 independent queries
@@ -83,27 +79,21 @@ canvasRouter.get('/:projectId', async (c) => {
  * POST /api/canvas/:projectId/design
  *
  * REST (non-streaming) entry point for the two-agent pipeline.
- * Use this when the frontend doesn't have an active WebSocket connection,
- * or for programmatic / server-to-server calls.
- *
- * For real-time streaming with the typing effect, use the WebSocket
- * AI_CHAT_STREAM message instead.
- *
- * Body: { prompt: string }
- * Returns: { data: { architecture, code, savedNodeIds, savedEdgeIds } }
+ * Verifies ownership before allowing generation.
  */
 canvasRouter.post('/:projectId/design', async (c) => {
   const projectId = c.req.param('projectId')!;
+  const user = c.get('user');
 
-  // Verify project exists
+  // Verify project exists AND belongs to user
   const [project] = await db
     .select({ id: projects.id })
     .from(projects)
-    .where(eq(projects.id, projectId))
+    .where(and(eq(projects.id, projectId), eq(projects.userId, user.id)))
     .limit(1);
 
   if (!project) {
-    return c.json({ error: 'Project not found' }, 404);
+    return c.json({ error: 'Project not found or access denied' }, 404);
   }
 
   let body: unknown;
@@ -119,7 +109,9 @@ canvasRouter.post('/:projectId/design', async (c) => {
   }
 
   try {
-    const result = await designArchitecture(parsed.data.prompt, projectId);
+    // For non-streaming REST, we wrap the prompt in the format expected by the orchestrator
+    const messages: { role: 'user', content: string }[] = [{ role: 'user', content: parsed.data.prompt }];
+    const result = await designArchitecture(messages, projectId);
     return c.json({ data: result }, 201);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Orchestration failed';

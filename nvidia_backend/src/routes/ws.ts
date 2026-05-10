@@ -3,9 +3,10 @@ import { upgradeWebSocket, websocket } from 'hono/bun';
 import type { ServerWebSocket } from 'bun';
 
 import { db } from '../db';
-import { nodes, chatHistory } from '../db/schema';
-import { eq } from 'drizzle-orm';
+import { nodes, chatHistory, projects } from '../db/schema';
+import { eq, and } from 'drizzle-orm';
 import { streamDesignArchitecture } from '../services/ai-orchestrator';
+import type { AuthVariables } from '../middleware/auth';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Message Types — Client → Server
@@ -42,13 +43,14 @@ export { websocket };
 // Router
 // ─────────────────────────────────────────────────────────────────────────────
 
-const wsRouter = new Hono();
+const wsRouter = new Hono<{ Variables: AuthVariables }>();
 
 wsRouter.get(
   '/ws/projects/:projectId',
   upgradeWebSocket((c) => {
     // Capture per-connection state in a closure — no global map needed.
     const projectId = c.req.param('projectId')!;
+    const user = c.get('user');
     const clientId = crypto.randomUUID();
 
     // Helpers to send typed payloads to a single socket
@@ -57,23 +59,40 @@ wsRouter.get(
 
     return {
       // ── onOpen ──────────────────────────────────────────────────────────
-      onOpen(_evt, ws) {
+      async onOpen(_evt, ws) {
         const raw = ws.raw as ServerWebSocket<unknown>;
 
-        // Subscribe to the project's pub/sub topic.
-        // raw.publish() sends to ALL other subscribers in this topic.
-        raw.subscribe(projectId);
+        try {
+          // Verify ownership immediately on connection
+          const [project] = await db
+            .select({ id: projects.id })
+            .from(projects)
+            .where(and(eq(projects.id, projectId), eq(projects.userId, user.id)))
+            .limit(1);
 
-        // Announce arrival to everyone else in the room
-        raw.publish(
-          projectId,
-          JSON.stringify({ type: 'CLIENT_JOINED', clientId }),
-        );
+          if (!project) {
+            send(ws, { type: 'ERROR', message: 'Project not found or access denied' });
+            raw.close(1008, 'Unauthorized');
+            return;
+          }
 
-        // Confirm connection details to the connecting client
-        send(ws, { type: 'CONNECTED', clientId, projectId });
+          // Subscribe to the project's pub/sub topic.
+          raw.subscribe(projectId);
 
-        console.log(`[WS] client ${clientId} joined project ${projectId}`);
+          // Announce arrival to everyone else in the room
+          raw.publish(
+            projectId,
+            JSON.stringify({ type: 'CLIENT_JOINED', clientId }),
+          );
+
+          // Confirm connection details to the connecting client
+          send(ws, { type: 'CONNECTED', clientId, projectId });
+
+          console.log(`[WS] client ${clientId} (${user.email}) joined project ${projectId}`);
+        } catch (err) {
+          console.error('[WS] Connection error:', err);
+          raw.close(1011, 'Internal Server Error');
+        }
       },
 
       // ── onMessage ───────────────────────────────────────────────────────
@@ -106,7 +125,6 @@ wsRouter.get(
 
           // ── NODE_DRAG ──────────────────────────────────────────────────
           // Broadcast position + fire-and-forget DB update.
-          // Using void to not block the WS event loop on the DB write.
           case 'NODE_DRAG': {
             const broadcastPayload = JSON.stringify({
               type: 'NODE_DRAG',
@@ -120,6 +138,8 @@ wsRouter.get(
             raw.publish(projectId, broadcastPayload);
 
             // Persist new position asynchronously (fire-and-forget)
+            // Note: We don't verify ownership on every drag for performance,
+            // relying on the initial connection verification.
             void db
               .update(nodes)
               .set({ positionX: msg.x, positionY: msg.y })
@@ -132,9 +152,6 @@ wsRouter.get(
           }
 
           // ── AI_CHAT_STREAM ─────────────────────────────────────────────
-          // Run the full two-agent pipeline, streaming architect tokens to
-          // EVERY client in the room as they arrive, then sending AI_DONE
-          // with the full architecture + generated code once complete.
           case 'AI_CHAT_STREAM': {
             if (!msg.prompt?.trim()) {
               send(ws, { type: 'AI_ERROR', message: 'Prompt cannot be empty' });
@@ -213,8 +230,7 @@ wsRouter.get(
           JSON.stringify({ type: 'CLIENT_LEFT', clientId }),
         );
 
-        // Unsubscribe from the pub/sub topic (Bun cleans up automatically
-        // on socket close, but being explicit is safer)
+        // Unsubscribe from the pub/sub topic
         raw.unsubscribe(projectId);
 
         console.log(`[WS] client ${clientId} left project ${projectId}`);

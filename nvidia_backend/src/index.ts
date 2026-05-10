@@ -44,10 +44,13 @@ app.use('/api/projects/*', requireAuth);
 app.use('/api/canvas/*', requireAuth);
 app.use('/ws/projects/*', requireAuth); // runs during the HTTP upgrade handshake
 
+import shareRouter from './routes/share';
+
 // ── Protected HTTP Routes ──────────────────────────────────────────────────
 app.route('/api', aiRoutes);                  // /api/generate (SSE)
 app.route('/api/projects', projectsRouter);   // /api/projects CRUD
 app.route('/api/canvas', canvasRouter);       // /api/canvas/:id + /design
+app.route('/api/share', shareRouter);         // /api/share (public and protected endpoints)
 app.route('/', wsRouter);                     // /ws/projects/:projectId
 
 app.get('/health', (c) => c.json({ status: 'ok', timestamp: new Date().toISOString() }));

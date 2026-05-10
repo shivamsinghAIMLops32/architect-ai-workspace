@@ -6,6 +6,9 @@ import { pgTable, text, timestamp, real, jsonb, serial, boolean } from 'drizzle-
 export const projects = pgTable('projects', {
   id: text('id').primaryKey(), // nanoid / uuid supplied by the app layer
   name: text('name').notNull(),
+  userId: text('user_id')
+    .references(() => user.id, { onDelete: 'cascade' }),  // nullable for backwards compat with existing rows
+  shareToken: text('share_token'),  // nullable — generated on demand for sharing
   createdAt: timestamp('created_at').notNull().defaultNow(),
   updatedAt: timestamp('updated_at').notNull().defaultNow(),
 });
@@ -39,6 +42,7 @@ export const edges = pgTable('edges', {
   targetNodeId: text('target_node_id')
     .notNull()
     .references(() => nodes.id, { onDelete: 'cascade' }),
+  dataJson: jsonb('data_json').default({}), // edge metadata: label, protocol, animated
 });
 
 // ─────────────────────────────────────────────────────────────────────────────

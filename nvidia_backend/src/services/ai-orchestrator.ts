@@ -8,19 +8,38 @@ import type { NewNode, NewEdge } from '../db/schema';
 // Types — what the Architect agent must return
 // ─────────────────────────────────────────────────────────────────────────────
 
+export interface ArchitectEndpoint {
+  method: string;  // "GET", "POST", "PUT", "DELETE", etc.
+  path: string;    // "/api/users"
+  desc: string;    // "Register a new user"
+}
+
+export interface ArchitectNodeData {
+  description: string;
+  endpoints: ArchitectEndpoint[];
+  techStack: string[];
+  port: number | null;
+  protocol: string;        // "HTTP", "gRPC", "WebSocket", "TCP", "AMQP"
+  tier: 'client' | 'gateway' | 'service' | 'data' | 'external';
+  scaling: string;         // "horizontal", "vertical", "singleton"
+}
+
 export interface ArchitectNode {
   id: string;          // e.g. "lb-1"
   type: string;        // e.g. "load_balancer"
   label: string;       // e.g. "Nginx Load Balancer"
   position_x: number;
   position_y: number;
-  data: Record<string, unknown>; // arbitrary metadata
+  data: ArchitectNodeData;
 }
 
 export interface ArchitectEdge {
   id: string;          // e.g. "edge-lb1-api1"
   source: string;      // node id
   target: string;      // node id
+  label: string;       // e.g. "REST /api/users"
+  protocol: string;    // "HTTP", "gRPC", "WebSocket", "TCP"
+  animated: boolean;   // true for async/streaming connections
 }
 
 export interface ArchitectOutput {
@@ -40,7 +59,7 @@ export interface OrchestratorResult {
 // Converts a free-text prompt into a strict JSON graph of nodes + edges.
 // ─────────────────────────────────────────────────────────────────────────────
 
-const ARCHITECT_SYSTEM_PROMPT = `You are a Senior Engineering and System Architect.
+const ARCHITECT_SYSTEM_PROMPT = `You are a Senior Engineering and System Architect who designs production-grade distributed systems.
 The user will describe a system they want to build or ask follow-up questions.
 Your job is to reason about the system, and then output a valid JSON object that maps that system as a graph.
 
@@ -48,32 +67,114 @@ Rules:
 1. Always output your reasoning and thought process inside <think>...</think> tags FIRST.
 2. After the </think> tag, output ONLY the raw JSON object — no markdown fences (\`\`\`), no preamble.
 3. The JSON must have exactly two top-level keys: "nodes" and "edges".
-4. Each node must have: id (string), type (string), label (string), position_x (number), position_y (number), data (object). You can use 0 for x and y as they are auto-layouted.
-5. Each edge must have: id (string), source (string, a node id), target (string, a node id).
-6. Node types should be concise snake_case identifiers: load_balancer, api_server, database, cache, message_queue, cdn, storage, etc.
-7. EVERY node's "data" object MUST contain a "description" (string) explaining its exact role and responsibility in this specific architecture.
-8. If the node is an API, server, or gateway, the "data" object MUST contain an "endpoints" (array of strings) detailing 2-3 sample API routes (e.g. ["POST /users", "GET /health"]). If not applicable, provide an empty array [].
-9. Produce between 3 and 12 nodes. Keep the design realistic and educational.
+
+NODE SCHEMA — each node MUST have ALL of these fields:
+{
+  "id": "string — unique snake_case id, e.g. 'api_server_1'",
+  "type": "string — snake_case: load_balancer, api_server, database, cache, message_queue, cdn, storage, web_app, mobile_app, auth_service, monitoring, firewall, worker, scheduler, search_engine, notification_service, etc.",
+  "label": "string — human-readable name, e.g. 'Nginx API Gateway'",
+  "position_x": 0,
+  "position_y": 0,
+  "data": {
+    "description": "string — 1-2 sentences explaining its exact role and responsibility in THIS architecture",
+    "endpoints": [
+      {"method": "POST", "path": "/api/users", "desc": "Register a new user"},
+      {"method": "GET", "path": "/api/health", "desc": "Health check"}
+    ],
+    "techStack": ["Node.js", "Express", "TypeScript"],
+    "port": 8080,
+    "protocol": "HTTP",
+    "tier": "service",
+    "scaling": "horizontal"
+  }
+}
+
+FIELD RULES:
+- "endpoints": Array of {method, path, desc} objects. Include 2-4 realistic API routes for API servers, gateways, and services. Use empty array [] for databases, caches, queues, and non-API components.
+- "techStack": Array of 1-3 specific technologies. Be concrete: "PostgreSQL 16" not just "database", "Redis 7" not just "cache", "Nginx" not just "load balancer".
+- "port": The network port this service listens on. Use null for external services and clients.
+- "protocol": One of "HTTP", "HTTPS", "gRPC", "WebSocket", "TCP", "AMQP", "MQTT". Pick the most appropriate for the connection type.
+- "tier": REQUIRED. One of "client", "gateway", "service", "data", "external". This determines the visual layout column:
+    - "client" = browsers, mobile apps, SPAs (leftmost column)
+    - "gateway" = load balancers, API gateways, reverse proxies, CDNs
+    - "service" = backend services, workers, microservices
+    - "data" = databases, caches, message queues, object storage
+    - "external" = third-party APIs, email providers, payment gateways
+- "scaling": One of "horizontal", "vertical", "singleton". Most services are "horizontal", databases are typically "vertical" or "singleton".
+
+EDGE SCHEMA — each edge MUST have ALL of these fields:
+{
+  "id": "string — unique id, e.g. 'edge_gateway_to_api'",
+  "source": "string — source node id",
+  "target": "string — target node id",
+  "label": "string — short data flow description, e.g. 'REST /api/*', 'Pub/Sub events', 'SQL queries', 'Cache lookups'",
+  "protocol": "string — one of HTTP, HTTPS, gRPC, WebSocket, TCP, AMQP, MQTT",
+  "animated": false
+}
+
+EDGE RULES:
+- "label": Keep it concise (max 25 chars). Describe WHAT data flows through this connection.
+- "animated": Set to true ONLY for asynchronous/streaming connections (WebSocket, message queues, event streams). Set to false for synchronous request-response (HTTP, gRPC).
+- Make sure edges flow logically: client → gateway → service → data. Include reverse edges only when the architecture requires bidirectional communication.
+
+GENERAL RULES:
+- Produce between 4 and 12 nodes. Keep the design realistic, production-grade, and educational.
+- Every node MUST have a valid "tier" value. This is critical for layout.
+- Use descriptive, specific labels — "PostgreSQL Primary" not "Database".
+- Include infrastructure components that a real production system would need (load balancer, cache, monitoring, etc).
 
 Example output shape:
 <think>
-To handle high traffic, I should place an Nginx load balancer in front of the API.
+The user wants an e-commerce API. I need a CDN for the frontend, an API gateway, two microservices, a database, and a cache layer. Let me assign tiers properly.
 </think>
 {
   "nodes": [
     {
-      "id": "nginx_lb",
+      "id": "web_app",
+      "type": "web_app",
+      "label": "React SPA",
+      "position_x": 0,
+      "position_y": 0,
+      "data": {
+        "description": "Single page application serving the storefront UI. Communicates with the API gateway for all backend operations.",
+        "endpoints": [],
+        "techStack": ["React 18", "TypeScript", "Vite"],
+        "port": 3000,
+        "protocol": "HTTPS",
+        "tier": "client",
+        "scaling": "horizontal"
+      }
+    },
+    {
+      "id": "api_gateway",
       "type": "load_balancer",
       "label": "Nginx API Gateway",
       "position_x": 0,
       "position_y": 0,
       "data": {
-        "description": "Serves as the main entry point, handles rate limiting, TLS termination, and routes requests to the backend servers.",
-        "endpoints": ["ANY /*", "GET /health"]
+        "description": "Entry point for all API traffic. Handles TLS termination, rate limiting, and routes requests to backend services.",
+        "endpoints": [
+          {"method": "ANY", "path": "/*", "desc": "Reverse proxy to services"},
+          {"method": "GET", "path": "/health", "desc": "Gateway health check"}
+        ],
+        "techStack": ["Nginx", "OpenResty"],
+        "port": 443,
+        "protocol": "HTTPS",
+        "tier": "gateway",
+        "scaling": "horizontal"
       }
     }
   ],
-  "edges": []
+  "edges": [
+    {
+      "id": "edge_web_to_gateway",
+      "source": "web_app",
+      "target": "api_gateway",
+      "label": "HTTPS /api/*",
+      "protocol": "HTTPS",
+      "animated": false
+    }
+  ]
 }`;
 
 export type ChatMessagePayload = { role: 'user' | 'assistant' | 'system'; content: string };
@@ -86,7 +187,7 @@ async function runArchitectAgent(messages: ChatMessagePayload[]): Promise<Archit
       ...messages,
     ],
     temperature: 0.2,   // low temp = deterministic JSON
-    max_tokens: 2048,
+    max_tokens: 4096,
     stream: false,
   });
 
@@ -174,6 +275,11 @@ async function persistToDatabase(
     projectId,
     sourceNodeId: `${projectId}-${e.source}`,
     targetNodeId: `${projectId}-${e.target}`,
+    dataJson: {
+      label: e.label || '',
+      protocol: e.protocol || 'HTTP',
+      animated: e.animated || false,
+    },
   }));
 
   // Insert nodes (upsert — safe to call multiple times for the same project)
@@ -200,6 +306,7 @@ async function persistToDatabase(
       set: {
         sourceNodeId: edges.sourceNodeId,
         targetNodeId: edges.targetNodeId,
+        dataJson: edges.dataJson,
       },
     })
     .returning({ id: edges.id });
@@ -280,7 +387,7 @@ export async function* streamDesignArchitecture(
       ...messages,
     ],
     temperature: 0.2,
-    max_tokens: 2048,
+    max_tokens: 4096,
     stream: true,
   });
 
