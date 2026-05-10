@@ -124,10 +124,42 @@ export default function DashboardLayout({
                         <p className="text-xs leading-relaxed whitespace-pre-wrap text-violet-200">
                           {response}
                         </p>
-                      ) : response && msg.role === 'assistant' && !response.includes('"nodes":') && !response.trim().startsWith('{') ? (
-                        <p className="text-xs leading-relaxed whitespace-pre-wrap text-zinc-300">
-                          {response}
-                        </p>
+                      ) : response && msg.role === 'assistant' ? (
+                        response.trim().startsWith('{') || response.includes('"nodes":') ? (
+                          <div className="flex flex-col gap-2 bg-black/20 rounded-lg p-3 border border-white/5 mt-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="flex h-5 w-5 items-center justify-center rounded bg-emerald-500/20 text-emerald-400 text-[10px]">✓</span>
+                              <span className="text-xs font-semibold text-zinc-300">Architecture Generated</span>
+                            </div>
+                            {(() => {
+                              try {
+                                const parsed = JSON.parse(response);
+                                const nodeCount = parsed.nodes?.length || 0;
+                                const edgeCount = parsed.edges?.length || 0;
+                                return (
+                                  <>
+                                    <div className="text-[10px] text-zinc-500 font-mono mb-2">
+                                      {nodeCount} nodes · {edgeCount} connections
+                                    </div>
+                                    <div className="flex flex-wrap gap-1.5">
+                                      {parsed.nodes?.map((n: any, i: number) => (
+                                        <span key={i} className="px-2 py-1 rounded bg-white/5 border border-white/10 text-[9px] font-medium text-zinc-400">
+                                          {n.label || n.id}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </>
+                                );
+                              } catch (e) {
+                                return <p className="text-xs text-zinc-400">Invalid JSON data</p>;
+                              }
+                            })()}
+                          </div>
+                        ) : (
+                          <p className="text-xs leading-relaxed whitespace-pre-wrap text-zinc-300">
+                            {response}
+                          </p>
+                        )
                       ) : null}
                     </div>
                   </div>

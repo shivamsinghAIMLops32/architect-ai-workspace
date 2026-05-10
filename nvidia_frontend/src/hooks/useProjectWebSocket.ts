@@ -48,19 +48,27 @@ export function useProjectWebSocket(projectId?: string | string[]) {
                 id: `${projectId}-${n.id}`,
                 type: n.type || 'default',
                 position: { x: n.position_x, y: n.position_y },
-                data: { label: n.label, ...n.data },
+                data: { 
+                  label: n.label, 
+                  ...n.data 
+                },
               }));
 
               const mappedEdges = data.result.architecture.edges.map((e: any) => ({
                 id: `${projectId}-${e.id}`,
                 source: `${projectId}-${e.source}`,
                 target: `${projectId}-${e.target}`,
+                data: {
+                  label: e.label,
+                  protocol: e.protocol,
+                  animated: e.animated
+                }
               }));
 
               const { nodes: layoutedNodes, edges: layoutedEdges } = getLayoutedElements(
                 mappedNodes,
                 mappedEdges,
-                'LR' // Left to Right flow for architecture diagrams
+                'LR' // Left to Right flow
               );
 
               useProjectStore.getState().setNodes(layoutedNodes);

@@ -1,19 +1,34 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { ReactFlow, Background, BackgroundVariant, Controls, Node } from '@xyflow/react';
+import { ReactFlow, Background, BackgroundVariant, Controls, Node, MarkerType } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { useProjectStore } from '@/store/project-store';
 import { useProjectWebSocket } from '@/hooks/useProjectWebSocket';
 import { CustomNode } from './CustomNode';
+import { CustomEdge } from './CustomEdge';
 import { NodeEditorPanel } from './NodeEditorPanel';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
+import { ShareButton } from './ShareButton';
 
 const nodeTypes = {
   default: CustomNode,
-  // map anything else to CustomNode as well if needed
   custom: CustomNode,
+};
+
+const edgeTypes = {
+  custom: CustomEdge,
+};
+
+const defaultEdgeOptions = {
+  type: 'custom',
+  markerEnd: {
+    type: MarkerType.ArrowClosed,
+    width: 20,
+    height: 20,
+    color: '#a1a1aa', // zinc-400
+  },
 };
 
 interface CanvasEditorProps {
@@ -54,6 +69,7 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
         id: e.id,
         source: e.sourceNodeId,
         target: e.targetNodeId,
+        data: e.dataJson || {},
       }));
 
       setNodes(mappedNodes);
@@ -88,7 +104,8 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
 
   return (
     <div className="h-full w-full relative">
-      <div className="absolute top-4 right-4 z-10">
+      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+        <ShareButton projectId={projectId} />
         <Button onClick={handleAddNode} variant="outline" className="bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300">
           <Plus className="mr-2 h-4 w-4" />
           Add Node
@@ -99,14 +116,17 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
         nodes={nodes}
         edges={edges}
         nodeTypes={nodeTypes}
+        edgeTypes={edgeTypes}
+        defaultEdgeOptions={defaultEdgeOptions}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
         onNodeDrag={handleNodeDrag}
         onNodeClick={handleNodeClick}
         fitView
+        fitViewOptions={{ padding: 0.15 }}
         className="bg-transparent"
-        minZoom={0.2}
+        minZoom={0.1}
         maxZoom={4}
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="oklch(1 0 0 / 12%)" />
