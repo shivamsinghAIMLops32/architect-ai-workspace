@@ -1,6 +1,7 @@
 import { serverApi } from '@/lib/server-api';
 import { CanvasEditor } from '@/components/canvas/CanvasEditor';
 import { notFound } from 'next/navigation';
+import type { CanvasStateResponse } from '@/types/architecture';
 
 interface ProjectPageProps {
   params: Promise<{ projectId: string }>;
@@ -8,14 +9,7 @@ interface ProjectPageProps {
 
 async function getCanvasState(projectId: string) {
   try {
-    const res = await serverApi.get<{
-      data: {
-        project: any;
-        nodes: any[];
-        edges: any[];
-        chatHistory: any[];
-      };
-    }>(`/canvas/${projectId}`);
+    const res = await serverApi.get<{ data: CanvasStateResponse }>(`/canvas/${projectId}`);
     return res.data;
   } catch (error) {
     console.error(`Failed to load canvas state for ${projectId}:`, error);

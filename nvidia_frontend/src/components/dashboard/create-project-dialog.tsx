@@ -13,7 +13,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, Sparkles } from 'lucide-react';
 
 export function CreateProjectDialog() {
   const router = useRouter();
@@ -35,23 +35,26 @@ export function CreateProjectDialog() {
       setName('');
       // Navigate to the new project canvas
       router.push(`/dashboard/project/${res.data.id}`);
-    } catch (err: any) {
-      setError(err.message || 'Failed to create project');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to create project');
       setLoading(false);
     }
   }
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={
-        <Button className="bg-violet-600 text-white hover:bg-violet-500 transition-colors">
+        <Button className="h-10 bg-cyan-200 text-zinc-950 shadow-[0_0_30px_rgba(34,211,238,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-lime-200">
           <Plus className="mr-2 h-4 w-4" />
           New Architecture
         </Button>
       } />
-      <DialogContent className="sm:max-w-[425px] border-white/10 bg-card">
+      <DialogContent className="glass-panel sm:max-w-[425px] rounded-lg">
         <DialogHeader>
-          <DialogTitle>Create new architecture</DialogTitle>
+          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-300/20 bg-cyan-300/8">
+            <Sparkles className="h-4 w-4 text-cyan-100" />
+          </div>
+          <DialogTitle className="text-xl font-black">Create new architecture</DialogTitle>
           <DialogDescription className="text-zinc-400">
             Start a new system design canvas. You can ask AI to generate the initial layout.
           </DialogDescription>
@@ -66,7 +69,7 @@ export function CreateProjectDialog() {
               placeholder="e.g., E-commerce Microservices"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="border-white/10 bg-white/5 focus-visible:ring-violet-500/50"
+              className="border-white/10 bg-white/5 focus-visible:ring-cyan-300/50"
               autoFocus
               required
             />
@@ -76,7 +79,7 @@ export function CreateProjectDialog() {
             <Button
               type="submit"
               disabled={loading || !name.trim()}
-              className="bg-violet-600 hover:bg-violet-500"
+              className="bg-cyan-200 text-zinc-950 hover:bg-lime-200"
             >
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Create Canvas

@@ -10,7 +10,6 @@ import { cn } from '@/lib/utils';
 import { Radio } from 'lucide-react';
 
 export function CustomEdge({
-  id,
   sourceX,
   sourceY,
   targetX,
@@ -44,14 +43,14 @@ export function CustomEdge({
         style={{
           ...style,
           strokeWidth: selected ? 3 : 2,
-          stroke: selected ? 'var(--color-violet-500)' : 'var(--color-zinc-600)',
+          stroke: selected ? '#67e8f9' : '#64748b',
           strokeDasharray: animated ? '6 6' : 'none',
           animation: animated ? 'dashdraw 1s linear infinite' : 'none',
           opacity: 0.8,
         }}
         className={cn(
           "transition-all duration-200",
-          selected ? "drop-shadow-[0_0_8px_rgba(139,92,246,0.5)] z-50" : ""
+          selected ? "drop-shadow-[0_0_10px_rgba(103,232,249,0.55)] z-50" : ""
         )}
       />
       
@@ -70,11 +69,11 @@ export function CustomEdge({
             className="nodrag nopan"
           >
             <div className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-full border bg-zinc-900/90 shadow-sm backdrop-blur-sm transition-all duration-200",
-              selected ? "border-violet-500/50 shadow-violet-500/20 text-zinc-100 scale-105" : "border-white/10 text-zinc-400 hover:border-zinc-500"
+              "flex items-center gap-1.5 rounded-full border bg-zinc-950/90 px-2.5 py-1 shadow-sm backdrop-blur-sm transition-all duration-200",
+              selected ? "scale-105 border-cyan-300/50 text-zinc-100 shadow-cyan-300/20" : "border-white/10 text-zinc-400 hover:border-cyan-300/25"
             )}>
               {protocol && (
-                <span className="text-[9px] font-bold uppercase tracking-wider text-violet-400">
+                <span className="text-[9px] font-bold uppercase tracking-wider text-cyan-100">
                   {protocol}
                 </span>
               )}
@@ -83,7 +82,7 @@ export function CustomEdge({
                 {label}
               </span>
               {animated && (
-                <Radio className="w-3 h-3 text-emerald-400 animate-pulse ml-1" />
+                <Radio className="ml-1 h-3 w-3 animate-pulse text-lime-200" />
               )}
             </div>
           </div>

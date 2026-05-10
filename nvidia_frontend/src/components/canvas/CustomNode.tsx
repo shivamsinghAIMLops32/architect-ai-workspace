@@ -1,34 +1,34 @@
 'use client';
 
 import { Handle, Position, NodeProps } from '@xyflow/react';
-import { Server, Database, Cloud, Lock, Globe, Layers, Cpu, MessageSquare, HardDrive, Activity, Network, Shield, Smartphone, Box } from 'lucide-react';
+import { Server, Database, Cloud, Globe, Layers, Cpu, MessageSquare, HardDrive, Activity, Network, Shield, Smartphone, Box } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-function getIconForType(type: string | undefined, label: string) {
+function renderIconForType(type: string | undefined, label: string) {
   const normalizedStr = `${type} ${label}`.toLowerCase();
 
-  if (normalizedStr.includes('database') || normalizedStr.includes('sql')) return Database;
-  if (normalizedStr.includes('server') || normalizedStr.includes('api')) return Server;
-  if (normalizedStr.includes('cloud') || normalizedStr.includes('aws')) return Cloud;
-  if (normalizedStr.includes('security') || normalizedStr.includes('auth') || normalizedStr.includes('firewall')) return Shield;
-  if (normalizedStr.includes('web') || normalizedStr.includes('frontend') || normalizedStr.includes('cdn')) return Globe;
-  if (normalizedStr.includes('mobile') || normalizedStr.includes('app')) return Smartphone;
-  if (normalizedStr.includes('queue') || normalizedStr.includes('kafka') || normalizedStr.includes('rabbitmq')) return MessageSquare;
-  if (normalizedStr.includes('storage') || normalizedStr.includes('s3') || normalizedStr.includes('bucket')) return HardDrive;
-  if (normalizedStr.includes('cache') || normalizedStr.includes('redis')) return Layers;
-  if (normalizedStr.includes('load_balancer') || normalizedStr.includes('proxy') || normalizedStr.includes('gateway')) return Network;
-  if (normalizedStr.includes('monitor') || normalizedStr.includes('metric') || normalizedStr.includes('log')) return Activity;
+  if (normalizedStr.includes('database') || normalizedStr.includes('sql')) return <Database className="h-5 w-5" />;
+  if (normalizedStr.includes('server') || normalizedStr.includes('api')) return <Server className="h-5 w-5" />;
+  if (normalizedStr.includes('cloud') || normalizedStr.includes('aws')) return <Cloud className="h-5 w-5" />;
+  if (normalizedStr.includes('security') || normalizedStr.includes('auth') || normalizedStr.includes('firewall')) return <Shield className="h-5 w-5" />;
+  if (normalizedStr.includes('web') || normalizedStr.includes('frontend') || normalizedStr.includes('cdn')) return <Globe className="h-5 w-5" />;
+  if (normalizedStr.includes('mobile') || normalizedStr.includes('app')) return <Smartphone className="h-5 w-5" />;
+  if (normalizedStr.includes('queue') || normalizedStr.includes('kafka') || normalizedStr.includes('rabbitmq')) return <MessageSquare className="h-5 w-5" />;
+  if (normalizedStr.includes('storage') || normalizedStr.includes('s3') || normalizedStr.includes('bucket')) return <HardDrive className="h-5 w-5" />;
+  if (normalizedStr.includes('cache') || normalizedStr.includes('redis')) return <Layers className="h-5 w-5" />;
+  if (normalizedStr.includes('load_balancer') || normalizedStr.includes('proxy') || normalizedStr.includes('gateway')) return <Network className="h-5 w-5" />;
+  if (normalizedStr.includes('monitor') || normalizedStr.includes('metric') || normalizedStr.includes('log')) return <Activity className="h-5 w-5" />;
   
-  return Cpu; // Default fallback icon
+  return <Cpu className="h-5 w-5" />;
 }
 
 function getTierColorClass(tier: string | undefined) {
   switch (tier) {
-    case 'client': return 'border-sky-500 shadow-sky-500/20';
-    case 'gateway': return 'border-amber-500 shadow-amber-500/20';
-    case 'service': return 'border-violet-500 shadow-violet-500/20';
-    case 'data': return 'border-emerald-500 shadow-emerald-500/20';
-    case 'external': return 'border-rose-500 shadow-rose-500/20';
+    case 'client': return 'border-sky-300/70 shadow-sky-300/20';
+    case 'gateway': return 'border-amber-300/70 shadow-amber-300/20';
+    case 'service': return 'border-cyan-300/70 shadow-cyan-300/20';
+    case 'data': return 'border-lime-300/70 shadow-lime-300/20';
+    case 'external': return 'border-fuchsia-300/70 shadow-fuchsia-300/20';
     default: return 'border-zinc-500 shadow-zinc-500/20';
   }
 }
@@ -37,9 +37,9 @@ function getTierBgClass(tier: string | undefined) {
   switch (tier) {
     case 'client': return 'bg-sky-500/10 border-sky-500/20 text-sky-400';
     case 'gateway': return 'bg-amber-500/10 border-amber-500/20 text-amber-400';
-    case 'service': return 'bg-violet-500/10 border-violet-500/20 text-violet-400';
-    case 'data': return 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400';
-    case 'external': return 'bg-rose-500/10 border-rose-500/20 text-rose-400';
+    case 'service': return 'bg-cyan-300/10 border-cyan-300/20 text-cyan-100';
+    case 'data': return 'bg-lime-300/10 border-lime-300/20 text-lime-100';
+    case 'external': return 'bg-fuchsia-300/10 border-fuchsia-300/20 text-fuchsia-100';
     default: return 'bg-zinc-500/10 border-zinc-500/20 text-zinc-400';
   }
 }
@@ -56,7 +56,6 @@ function getMethodColorClass(method: string) {
 }
 
 export function CustomNode({ data, selected }: NodeProps) {
-  const Icon = getIconForType(data.type as string, (data.label as string) || '');
   const tierClass = getTierColorClass(data.tier as string);
   const bgClass = getTierBgClass(data.tier as string);
   
@@ -65,29 +64,35 @@ export function CustomNode({ data, selected }: NodeProps) {
   const flowStep = data.flowStep as number | undefined;
   const flowDescription = data.flowDescription as string | undefined;
   const capacityEstimate = data.capacityEstimate as string | undefined;
+  const label = (data.label as string) || 'Untitled component';
+  const port = data.port as string | number | undefined;
+  const nodeType = (data.type as string) || 'Service';
+  const scaling = data.scaling as string | undefined;
 
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-xl border bg-zinc-950 shadow-xl transition-all duration-200 min-w-[380px] max-w-[420px] overflow-hidden",
-        selected ? tierClass : "border-zinc-800 shadow-black/50 hover:border-zinc-700"
+        "relative flex min-w-[380px] max-w-[420px] flex-col overflow-hidden rounded-lg border bg-zinc-950/92 shadow-2xl transition-all duration-300",
+        selected ? `${tierClass} shadow-[0_0_44px_rgba(34,211,238,0.18)]` : "border-white/10 shadow-black/50 hover:-translate-y-1 hover:border-cyan-300/28"
       )}
     >
       {/* Target handle (top) - intentionally hidden, dagre handles edges */}
       <Handle type="target" position={Position.Left} className="!w-2 !h-8 !rounded-r-sm !rounded-l-none !border-0 !bg-zinc-700/50 -ml-1 opacity-0" />
 
       {/* Top accent strip */}
-      <div className={cn("h-1.5 w-full", selected ? bgClass.split(' ')[0] : "bg-zinc-800")} />
+      <div className={cn("h-1.5 w-full", selected ? bgClass.split(' ')[0] : "bg-[linear-gradient(90deg,rgba(34,211,238,0.45),rgba(190,242,100,0.38),rgba(244,114,182,0.3))]")} />
 
-      <div className="p-4 flex flex-col gap-3">
+      <div className="absolute inset-0 pointer-events-none bg-[radial-gradient(circle_at_16%_8%,rgba(255,255,255,0.08),transparent_34%)]" />
+
+      <div className="relative flex flex-col gap-3 p-4">
         {/* Header: Icon + Label + Port */}
         <div className="flex items-start gap-3">
           <div className="relative">
-            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border", bgClass)}>
-              <Icon className="h-5 w-5" />
+            <div className={cn("flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border shadow-inner", bgClass)}>
+              {renderIconForType(nodeType, label)}
             </div>
             {flowStep && (
-              <div className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-violet-600 text-[10px] font-bold text-white shadow-md border border-violet-400">
+              <div className="absolute -left-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full border border-cyan-200/50 bg-cyan-300 text-[10px] font-black text-zinc-950 shadow-md">
                 {flowStep}
               </div>
             )}
@@ -95,21 +100,21 @@ export function CustomNode({ data, selected }: NodeProps) {
           <div className="flex flex-col flex-1 overflow-hidden">
             <div className="flex items-center justify-between gap-2">
               <span className="text-[15px] font-bold tracking-tight text-zinc-100 truncate">
-                {data.label as string}
+                {label}
               </span>
-              {data.port && (
-                <span className="text-[10px] font-mono text-zinc-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/10 shrink-0">
-                  :{data.port}
+              {port && (
+                <span className="shrink-0 rounded border border-white/10 bg-white/5 px-1.5 py-0.5 font-mono text-[10px] text-zinc-400">
+                  :{port}
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[10px] uppercase tracking-wider font-semibold text-zinc-500">
-                {data.type as string || 'Service'}
+                {nodeType}
               </span>
-              {data.scaling && (
+              {scaling && (
                 <span className="text-[9px] uppercase tracking-wider text-zinc-600 bg-white/5 px-1 rounded-sm border border-white/5 flex items-center gap-1">
-                  {data.scaling === 'horizontal' ? '↔' : data.scaling === 'vertical' ? '↕' : '●'} {data.scaling as string}
+                  {scaling === 'horizontal' ? 'H' : scaling === 'vertical' ? 'V' : 'S'} {scaling}
                 </span>
               )}
             </div>
@@ -120,7 +125,7 @@ export function CustomNode({ data, selected }: NodeProps) {
         {techStack.length > 0 && (
           <div className="flex flex-wrap gap-1.5 pt-1">
             {techStack.map((tech, i) => (
-              <span key={i} className="inline-flex items-center gap-1 rounded-full bg-zinc-900 border border-zinc-800/80 px-2 py-0.5 text-[10px] font-medium text-zinc-300">
+              <span key={i} className="inline-flex items-center gap-1 rounded-full border border-cyan-300/10 bg-white/[0.035] px-2 py-0.5 text-[10px] font-medium text-zinc-300 transition-colors hover:border-cyan-300/25 hover:text-cyan-100">
                 <Box className="w-2.5 h-2.5 text-zinc-500" />
                 {tech}
               </span>
@@ -137,7 +142,7 @@ export function CustomNode({ data, selected }: NodeProps) {
           )}
           {flowDescription && (
             <div className="text-[11px] text-zinc-300 leading-relaxed border-l-2 border-violet-500/50 pl-2 ml-0.5 mt-1">
-              <span className="font-semibold text-violet-400">Flow: </span>
+              <span className="font-semibold text-cyan-100">Flow: </span>
               {flowDescription}
             </div>
           )}
@@ -145,8 +150,8 @@ export function CustomNode({ data, selected }: NodeProps) {
 
         {/* Calculations / Capacity */}
         {capacityEstimate && (
-          <div className="flex items-center gap-2 bg-zinc-900/80 rounded px-2.5 py-1.5 border border-white/5 mt-1">
-            <Activity className="w-3 h-3 text-emerald-500 shrink-0" />
+          <div className="mt-1 flex items-center gap-2 rounded border border-lime-300/12 bg-lime-300/[0.04] px-2.5 py-1.5">
+            <Activity className="h-3 w-3 shrink-0 text-lime-200" />
             <span className="text-[10px] font-mono text-zinc-400 truncate" title={capacityEstimate}>
               {capacityEstimate}
             </span>
@@ -159,7 +164,7 @@ export function CustomNode({ data, selected }: NodeProps) {
             <span className="text-[10px] font-semibold text-zinc-500 uppercase tracking-wider">API Routes</span>
             <div className="flex flex-col gap-1.5">
               {endpoints.map((endpoint, i) => (
-                <div key={i} className="flex items-start gap-2 bg-zinc-900/50 rounded p-1.5 border border-white/5">
+                <div key={i} className="flex items-start gap-2 rounded border border-white/5 bg-zinc-900/50 p-1.5 transition-colors hover:border-cyan-300/15 hover:bg-cyan-300/[0.035]">
                   <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded border shrink-0 min-w-[40px] text-center", getMethodColorClass(endpoint.method))}>
                     {endpoint.method || 'ANY'}
                   </span>

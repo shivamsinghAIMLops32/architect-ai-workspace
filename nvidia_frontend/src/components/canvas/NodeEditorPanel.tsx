@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useProjectStore } from '@/store/project-store';
+import { Cpu } from 'lucide-react';
 
 interface NodeEditorPanelProps {
   nodeId: string | null;
@@ -20,6 +21,7 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
 
   useEffect(() => {
     if (node) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLabel((node.data.label as string) || '');
       setDescription((node.data.description as string) || '');
     }
@@ -44,9 +46,12 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
 
   return (
     <Sheet open={!!nodeId} onOpenChange={(open) => !open && onClose()}>
-      <SheetContent className="bg-zinc-950 border-l border-white/10 text-zinc-100 sm:max-w-md">
+      <SheetContent className="border-l border-white/10 bg-zinc-950/95 text-zinc-100 shadow-[0_0_80px_rgba(0,0,0,0.45)] backdrop-blur-xl sm:max-w-md">
         <SheetHeader>
-          <SheetTitle className="text-zinc-100">Edit Node</SheetTitle>
+          <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-lg border border-cyan-300/20 bg-cyan-300/8">
+            <Cpu className="h-4 w-4 text-cyan-100" />
+          </div>
+          <SheetTitle className="text-xl font-black text-zinc-100">Edit Node</SheetTitle>
           <SheetDescription className="text-zinc-500">
             Update the properties of the selected infrastructure node.
           </SheetDescription>
@@ -58,7 +63,7 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
             <Input 
               value={label} 
               onChange={(e) => setLabel(e.target.value)} 
-              className="bg-zinc-900 border-zinc-800 text-zinc-200"
+              className="border-white/10 bg-white/5 text-zinc-200 focus-visible:ring-cyan-300/50"
               placeholder="e.g. Nginx Load Balancer"
             />
           </div>
@@ -68,14 +73,14 @@ export function NodeEditorPanel({ nodeId, onClose }: NodeEditorPanelProps) {
             <Input 
               value={description} 
               onChange={(e) => setDescription(e.target.value)} 
-              className="bg-zinc-900 border-zinc-800 text-zinc-200"
+              className="border-white/10 bg-white/5 text-zinc-200 focus-visible:ring-cyan-300/50"
               placeholder="e.g. Routes traffic to API instances"
             />
           </div>
 
           <Button 
             onClick={handleSave}
-            className="mt-4 bg-violet-600 hover:bg-violet-500 text-white w-full"
+            className="mt-4 w-full bg-cyan-200 text-zinc-950 hover:bg-lime-200"
           >
             Save Changes
           </Button>

@@ -59,7 +59,7 @@ export const getLayoutedElements = (nodes: Node[], edges: Edge[], direction = 'L
     const tier = (node.data?.tier as string) || 'unknown';
     
     let targetX = dagreNode.x - nodeWidth / 2;
-    let targetY = dagreNode.y - nodeHeight / 2;
+    const targetY = dagreNode.y - nodeHeight / 2;
 
     // If it has a known tier, override its X position to snap to our perfect columns,
     // but keep dagre's Y position to prevent edge crossings and overlapping!

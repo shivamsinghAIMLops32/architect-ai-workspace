@@ -4,8 +4,10 @@ import '@xyflow/react/dist/style.css';
 import { CustomNode } from '@/components/canvas/CustomNode';
 import { CustomEdge } from '@/components/canvas/CustomEdge';
 import { getLayoutedElements } from '@/lib/layout';
-import { Cpu } from 'lucide-react';
+import { Eye } from 'lucide-react';
+import { ArchitectLogo } from '@/components/brand/architect-logo';
 import { notFound } from 'next/navigation';
+import type { SharedCanvasStateResponse } from '@/types/architecture';
 
 interface SharePageProps {
   params: Promise<{ token: string }>;
@@ -32,13 +34,7 @@ const defaultEdgeOptions = {
 
 async function getSharedCanvasState(token: string) {
   try {
-    const res = await serverApi.get<{
-      data: {
-        project: any;
-        nodes: any[];
-        edges: any[];
-      };
-    }>(`/share/${token}`);
+    const res = await serverApi.get<{ data: SharedCanvasStateResponse }>(`/share/${token}`);
     return res.data;
   } catch (error) {
     console.error(`Failed to load shared canvas state for ${token}:`, error);
@@ -79,25 +75,14 @@ export default async function SharedProjectPage({ params }: SharePageProps) {
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-background">
       {/* Top nav bar */}
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-white/8 bg-background/80 px-5 backdrop-blur-sm z-10">
-        <div className="flex items-center gap-3">
-          <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-violet-500/30 bg-violet-500/10">
-            <Cpu className="h-4 w-4 text-violet-400" />
-          </div>
-          <div>
-            <span className="text-sm font-semibold tracking-tight text-foreground block">
-              Architect AI
-            </span>
-            <span className="text-[10px] text-zinc-500 uppercase tracking-widest">
-              Shared Viewer
-            </span>
-          </div>
-        </div>
+      <header className="z-10 flex h-16 shrink-0 items-center justify-between border-b border-white/10 bg-zinc-950/72 px-5 shadow-[0_16px_50px_rgba(0,0,0,0.22)] backdrop-blur-xl">
+        <ArchitectLogo subtitle="Shared Viewer" />
         <div className="flex items-center gap-2">
-           <span className="text-sm font-medium text-zinc-300">
+           <span className="hidden text-sm font-semibold text-zinc-300 sm:block">
              {canvasState.project.name}
            </span>
-           <span className="text-xs text-zinc-600 border border-white/10 bg-white/5 rounded px-2 py-0.5">
+           <span className="inline-flex items-center gap-1.5 rounded-full border border-lime-300/20 bg-lime-300/8 px-2.5 py-1 text-xs font-bold uppercase tracking-[0.12em] text-lime-100">
+             <Eye className="h-3 w-3" />
              Read Only
            </span>
         </div>
@@ -107,7 +92,7 @@ export default async function SharedProjectPage({ params }: SharePageProps) {
       <main className="relative flex-1 overflow-hidden bg-dot-grid">
         <div
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,oklch(0.09_0_0)_100%)] z-0"
+            className="pointer-events-none absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_center,transparent_36%,oklch(0.105_0.012_230)_100%)]"
         />
         <div className="relative z-10 h-full w-full">
           <ReactFlow
@@ -124,13 +109,12 @@ export default async function SharedProjectPage({ params }: SharePageProps) {
             nodesDraggable={false}
             nodesConnectable={false}
             elementsSelectable={true}
-            edgesUpdatable={false}
             panOnDrag={true}
             zoomOnScroll={true}
             panOnScroll={true}
           >
-            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="oklch(1 0 0 / 12%)" />
-            <Controls className="bg-card border-white/10 fill-foreground" showInteractive={false} />
+            <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="oklch(0.76 0.17 190 / 18%)" />
+            <Controls showInteractive={false} />
           </ReactFlow>
         </div>
       </main>

@@ -12,7 +12,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-import { Loader2, Share2, Copy, Check } from 'lucide-react';
+import { Share2, Copy, Check } from 'lucide-react';
 
 export function ShareButton({ projectId }: { projectId: string }) {
   const [open, setOpen] = useState(false);
@@ -31,8 +31,8 @@ export function ShareButton({ projectId }: { projectId: string }) {
       // Construct full URL
       const url = `${window.location.origin}/share/${res.data.shareToken}`;
       setShareUrl(url);
-    } catch (err: any) {
-      setError(err.message || 'Failed to generate share link');
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Failed to generate share link');
     } finally {
       setLoading(false);
     }
@@ -58,14 +58,14 @@ export function ShareButton({ projectId }: { projectId: string }) {
       }
     }}>
       <DialogTrigger render={
-        <Button variant="outline" className="bg-zinc-900 border-violet-500/30 hover:bg-violet-500/10 text-violet-300">
+        <Button variant="outline" className="border-cyan-300/25 bg-zinc-950/75 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.08)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:bg-cyan-300/10">
           <Share2 className="mr-2 h-4 w-4" />
           Share
         </Button>
       } />
-      <DialogContent className="sm:max-w-md border-white/10 bg-card">
+      <DialogContent className="glass-panel sm:max-w-md rounded-lg">
         <DialogHeader>
-          <DialogTitle>Share Architecture</DialogTitle>
+          <DialogTitle className="text-xl font-black">Share Architecture</DialogTitle>
           <DialogDescription className="text-zinc-400">
             Anyone with this link can view a read-only version of this diagram.
           </DialogDescription>
@@ -76,13 +76,13 @@ export function ShareButton({ projectId }: { projectId: string }) {
             <Input
               readOnly
               value={loading ? 'Generating link...' : shareUrl}
-              className="bg-white/5 border-white/10 text-zinc-300"
+              className="border-white/10 bg-white/5 text-zinc-300 focus-visible:ring-cyan-300/50"
             />
           </div>
           <Button 
             onClick={handleCopy}
             disabled={loading || !shareUrl}
-            className="px-3 bg-violet-600 hover:bg-violet-500"
+            className="bg-cyan-200 px-3 text-zinc-950 hover:bg-lime-200"
           >
             <span className="sr-only">Copy</span>
             {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}

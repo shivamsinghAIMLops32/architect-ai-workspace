@@ -11,6 +11,8 @@ import { NodeEditorPanel } from './NodeEditorPanel';
 import { Button } from '@/components/ui/button';
 import { Plus } from 'lucide-react';
 import { ShareButton } from './ShareButton';
+import type { BackendCanvasEdge, BackendCanvasNode } from '@/types/architecture';
+import type { ChatMessage } from '@/store/project-store';
 
 const nodeTypes = {
   default: CustomNode,
@@ -33,9 +35,9 @@ const defaultEdgeOptions = {
 
 interface CanvasEditorProps {
   projectId: string;
-  initialNodes: any[];
-  initialEdges: any[];
-  initialChatHistory: any[];
+  initialNodes: BackendCanvasNode[];
+  initialEdges: BackendCanvasEdge[];
+  initialChatHistory: ChatMessage[];
 }
 
 export function CanvasEditor({ projectId, initialNodes, initialEdges, initialChatHistory }: CanvasEditorProps) {
@@ -93,20 +95,20 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
   }, []);
 
   const handleAddNode = useCallback(() => {
-    const newNode = {
+    const newNode: Node = {
       id: `manual-${Date.now()}`,
       type: 'default',
       position: { x: Math.random() * 200 + 100, y: Math.random() * 200 + 100 },
       data: { label: 'New Component' }
     };
-    setNodes([...nodes, newNode as any]);
+    setNodes([...nodes, newNode]);
   }, [nodes, setNodes]);
 
   return (
     <div className="h-full w-full relative">
-      <div className="absolute top-4 right-4 z-10 flex items-center gap-2">
+      <div className="absolute right-4 top-4 z-10 flex items-center gap-2">
         <ShareButton projectId={projectId} />
-        <Button onClick={handleAddNode} variant="outline" className="bg-zinc-900 border-zinc-700 hover:bg-zinc-800 text-zinc-300">
+        <Button onClick={handleAddNode} variant="outline" className="border-white/10 bg-zinc-950/75 text-zinc-300 shadow-[0_16px_45px_rgba(0,0,0,0.25)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-lime-200/30 hover:bg-lime-200/10 hover:text-lime-100">
           <Plus className="mr-2 h-4 w-4" />
           Add Node
         </Button>
@@ -129,8 +131,8 @@ export function CanvasEditor({ projectId, initialNodes, initialEdges, initialCha
         minZoom={0.1}
         maxZoom={4}
       >
-        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="oklch(1 0 0 / 12%)" />
-        <Controls className="bg-card border-white/10 fill-foreground" showInteractive={false} />
+        <Background variant={BackgroundVariant.Dots} gap={24} size={1} color="oklch(0.76 0.17 190 / 18%)" />
+        <Controls showInteractive={false} />
       </ReactFlow>
 
       <NodeEditorPanel nodeId={selectedNodeId} onClose={() => setSelectedNodeId(null)} />

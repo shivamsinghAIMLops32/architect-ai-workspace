@@ -7,7 +7,8 @@ import { signUp } from '@/lib/auth-client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, AlertCircle, Cpu } from 'lucide-react';
+import { Loader2, AlertCircle, ArrowRight, Boxes, GitBranch, Sparkles } from 'lucide-react';
+import { ArchitectLogo } from '@/components/brand/architect-logo';
 
 export default function SignupPage() {
   const router = useRouter();
@@ -49,47 +50,57 @@ export default function SignupPage() {
   }
 
   return (
-    <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-background">
-      {/* ── Ambient glow blobs ── */}
-      <div
-        aria-hidden="true"
-        className="animate-brand-glow pointer-events-none absolute -top-32 left-1/2 -translate-x-1/2 h-[600px] w-[600px] rounded-full bg-violet-600/20 blur-3xl"
-      />
-      <div
-        aria-hidden="true"
-        className="animate-brand-glow pointer-events-none absolute -bottom-20 right-10 h-[350px] w-[350px] rounded-full bg-indigo-600/10 blur-3xl"
-        style={{ animationDelay: '2.5s' }}
-      />
+    <div className="relative min-h-screen overflow-hidden bg-background">
+      <div className="absolute inset-0 bg-dot-grid" aria-hidden="true" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_18%,rgba(34,211,238,0.13),transparent_30rem),radial-gradient(circle_at_82%_76%,rgba(244,114,182,0.08),transparent_25rem)]" aria-hidden="true" />
 
-      {/* ── Card ── */}
-      <div className="relative z-10 w-full max-w-sm px-4 animate-fade-in-up">
-        {/* Logo mark */}
-        <div className="mb-8 flex flex-col items-center gap-3">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-violet-500/30 bg-violet-500/10 shadow-lg shadow-violet-500/10">
-            <Cpu className="h-6 w-6 text-violet-400" />
-          </div>
-          <p className="text-xs font-medium tracking-widest text-zinc-500 uppercase">
-            Architect AI
+      <div className="relative z-10 grid min-h-screen items-center gap-10 px-5 py-10 lg:grid-cols-[1.05fr_0.95fr] lg:px-12">
+        <section className="hidden max-w-2xl animate-fade-in-up lg:block">
+          <ArchitectLogo subtitle="New workspace" />
+          <h1 className="text-balance mt-10 text-6xl font-black leading-[0.95] tracking-tight text-zinc-50">
+            Turn rough requirements into readable architecture.
+          </h1>
+          <p className="mt-5 max-w-xl text-base leading-7 text-zinc-400">
+            Create secure design canvases, collaborate in real time, and let the AI generate structured system maps.
           </p>
-        </div>
+          <div className="mt-8 grid max-w-lg grid-cols-3 gap-3">
+            {[
+              ['Graph canvas', GitBranch],
+              ['Code assist', Boxes],
+              ['Live AI', Sparkles],
+            ].map(([label, Icon]) => {
+              const TypedIcon = Icon as typeof GitBranch;
+              return (
+                <div key={label as string} className="rounded-lg border border-white/10 bg-white/[0.035] p-3 backdrop-blur">
+                  <TypedIcon className="mb-3 h-4 w-4 text-cyan-100" />
+                  <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-zinc-300">{label as string}</div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
 
-        <Card className="border-white/8 bg-card/80 shadow-2xl shadow-black/40 backdrop-blur-sm">
+        <div className="mx-auto w-full max-w-sm animate-fade-in-scale">
+          <div className="mb-8 flex justify-center lg:hidden">
+            <ArchitectLogo subtitle="Workspace" />
+          </div>
+
+        <Card className="glass-panel rounded-lg">
           <CardHeader className="space-y-1 pb-4">
-            <CardTitle className="text-xl font-semibold tracking-tight">
+            <CardTitle className="text-2xl font-black tracking-tight">
               Create an account
             </CardTitle>
-            <CardDescription className="text-zinc-400 text-sm">
-              Start designing intelligent systems
+            <CardDescription className="text-sm text-zinc-400">
+              Start designing intelligent systems.
             </CardDescription>
           </CardHeader>
 
           <CardContent>
             <form id="signup-form" onSubmit={handleSubmit} className="space-y-4">
-              {/* Error banner */}
               {error && (
                 <div
                   role="alert"
-                  className="flex items-start gap-2.5 rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-400"
+                  className="flex items-start gap-2.5 rounded-lg border border-red-400/20 bg-red-500/10 px-3 py-2.5 text-sm text-red-300"
                 >
                   <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
                   <span>{error}</span>
@@ -97,10 +108,7 @@ export default function SignupPage() {
               )}
 
               <div className="space-y-2">
-                <label
-                  htmlFor="signup-name"
-                  className="text-sm font-medium text-zinc-300"
-                >
+                <label htmlFor="signup-name" className="text-sm font-semibold text-zinc-300">
                   Full name
                 </label>
                 <Input
@@ -111,15 +119,12 @@ export default function SignupPage() {
                   required
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  className="border-white/10 bg-white/5 placeholder:text-zinc-600 focus-visible:ring-violet-500/50 transition-all duration-200"
+                  className="border-white/10 bg-white/5 placeholder:text-zinc-600 transition-all duration-200 focus-visible:ring-cyan-300/50"
                 />
               </div>
 
               <div className="space-y-2">
-                <label
-                  htmlFor="signup-email"
-                  className="text-sm font-medium text-zinc-300"
-                >
+                <label htmlFor="signup-email" className="text-sm font-semibold text-zinc-300">
                   Email
                 </label>
                 <Input
@@ -130,17 +135,14 @@ export default function SignupPage() {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="border-white/10 bg-white/5 placeholder:text-zinc-600 focus-visible:ring-violet-500/50 transition-all duration-200"
+                  className="border-white/10 bg-white/5 placeholder:text-zinc-600 transition-all duration-200 focus-visible:ring-cyan-300/50"
                 />
               </div>
 
               <div className="space-y-2">
-                <label
-                  htmlFor="signup-password"
-                  className="text-sm font-medium text-zinc-300"
-                >
+                <label htmlFor="signup-password" className="text-sm font-semibold text-zinc-300">
                   Password
-                  <span className="ml-2 text-xs text-zinc-600 font-normal">
+                  <span className="ml-2 text-xs font-normal text-zinc-600">
                     min. 8 characters
                   </span>
                 </label>
@@ -153,7 +155,7 @@ export default function SignupPage() {
                   minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="border-white/10 bg-white/5 placeholder:text-zinc-600 focus-visible:ring-violet-500/50 transition-all duration-200"
+                  className="border-white/10 bg-white/5 placeholder:text-zinc-600 transition-all duration-200 focus-visible:ring-cyan-300/50"
                 />
               </div>
 
@@ -161,15 +163,18 @@ export default function SignupPage() {
                 id="signup-submit"
                 type="submit"
                 disabled={loading}
-                className="w-full bg-violet-600 text-white hover:bg-violet-500 focus-visible:ring-violet-500/50 transition-all duration-200 font-medium"
+                className="h-10 w-full bg-cyan-200 text-zinc-950 shadow-[0_0_28px_rgba(34,211,238,0.16)] transition-all duration-300 hover:-translate-y-0.5 hover:bg-lime-200"
               >
                 {loading ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Creating account…
+                    Creating account...
                   </>
                 ) : (
-                  'Create account'
+                  <>
+                    Create account
+                    <ArrowRight className="ml-2 h-4 w-4 transition-transform group-hover/button:translate-x-0.5" />
+                  </>
                 )}
               </Button>
 
@@ -177,7 +182,7 @@ export default function SignupPage() {
                 Already have an account?{' '}
                 <Link
                   href="/login"
-                  className="text-violet-400 hover:text-violet-300 transition-colors duration-150 font-medium"
+                  className="font-semibold text-cyan-200 transition-colors duration-150 hover:text-lime-200"
                 >
                   Sign in
                 </Link>
@@ -185,6 +190,7 @@ export default function SignupPage() {
             </form>
           </CardContent>
         </Card>
+        </div>
       </div>
     </div>
   );

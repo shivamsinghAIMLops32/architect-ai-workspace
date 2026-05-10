@@ -3,6 +3,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useProjectStore } from '@/store/project-store';
 import { getLayoutedElements } from '@/lib/layout';
+import type { ProjectWsIncomingMessage, ProjectWsOutgoingMessage } from '@/types/architecture';
 
 export function useProjectWebSocket(projectId?: string | string[]) {
   const ws = useRef<WebSocket | null>(null);
@@ -21,7 +22,7 @@ export function useProjectWebSocket(projectId?: string | string[]) {
 
     socket.onmessage = (event) => {
       try {
-        const data = JSON.parse(event.data);
+        const data = JSON.parse(event.data) as ProjectWsIncomingMessage;
         
         switch (data.type) {
           case 'NODE_DRAG':
@@ -44,10 +45,10 @@ export function useProjectWebSocket(projectId?: string | string[]) {
             });
 
             if (data.result?.architecture) {
-              const mappedNodes = data.result.architecture.nodes.map((n: any) => ({
+              const mappedNodes = data.result.architecture.nodes.map((n) => ({
                 id: `${projectId}-${n.id}`,
                 type: 'custom',
-                position: { x: n.position_x, y: n.position_y },
+                position: { x: n.position_x ?? 0, y: n.position_y ?? 0 },
                 data: { 
                   label: n.label, 
                   type: n.type,
@@ -55,7 +56,7 @@ export function useProjectWebSocket(projectId?: string | string[]) {
                 },
               }));
 
-              const mappedEdges = data.result.architecture.edges.map((e: any) => ({
+              const mappedEdges = data.result.architecture.edges.map((e) => ({
                 id: `${projectId}-${e.id}`,
                 source: `${projectId}-${e.source}`,
                 target: `${projectId}-${e.target}`,
@@ -103,7 +104,7 @@ export function useProjectWebSocket(projectId?: string | string[]) {
     };
   }, [projectId, setStreamState, appendStreamContent, updateNodePosition]);
 
-  const sendMessage = useCallback((msg: any) => {
+  const sendMessage = useCallback((msg: ProjectWsOutgoingMessage) => {
     if (ws.current?.readyState === WebSocket.OPEN) {
       ws.current.send(JSON.stringify(msg));
     }
