@@ -57,12 +57,12 @@ export function ShareButton({ projectId }: { projectId: string }) {
         handleGenerateLink();
       }
     }}>
-      <DialogTrigger asChild>
+      <DialogTrigger render={
         <Button variant="outline" className="bg-zinc-900 border-violet-500/30 hover:bg-violet-500/10 text-violet-300">
           <Share2 className="mr-2 h-4 w-4" />
           Share
         </Button>
-      </DialogTrigger>
+      } />
       <DialogContent className="sm:max-w-md border-white/10 bg-card">
         <DialogHeader>
           <DialogTitle>Share Architecture</DialogTitle>
