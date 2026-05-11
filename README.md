@@ -2,7 +2,7 @@
 
 Architect AI is a collaborative, AI-powered system design tool that helps engineers design, visualize, and document distributed architectures in real-time. By chatting with an AI architect, you can automatically generate rich, tier-aware diagrams of your system and even get starter configuration code.
 
-![Architect AI](https://images.unsplash.com/photo-1555949963-aa79dcee981c?q=80&w=1000&auto=format&fit=crop) *(replace with actual screenshot)*
+![Architect AI](image.png)
 
 ## ✨ Features
 
